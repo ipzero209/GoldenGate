@@ -9,9 +9,10 @@ class Device:
     """
 
 
-    def __init__(self, ser_num, mgmt_ip, is_ha='no', ha_peer=None, ha_state=None):
+    def __init__(self, ser_num, mgmt_ip, os_ver, is_ha='no', ha_peer=None, ha_state=None):
         self.ser_num = ser_num
         self.mgmt_ip = mgmt_ip
+        self.os_ver = os_ver
         if is_ha == 'no':
             self.ha_peer = "No Peer"
             self.ha_state = "No State"

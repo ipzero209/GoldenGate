@@ -10,6 +10,7 @@ import logging
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 os.system('mkdir /var/log/pan')
+os.system('mkdir /etc/pan_shim')
 
 logger = logging.getLogger("setup")
 logger.setLevel(logging.DEBUG)
@@ -32,7 +33,7 @@ def getKey():
     if key_request.status_code != 200:
         err_node = key_xml.find('./result/msg')
         logger.critical('Error retrieving API key from {}: {}'.format(pano_ip, err_node.text))
-    key_node = key.xml.find('./result/key')
+    key_node = key_xml.find('./result/key')
     logger.info("API key successfully retrieved from {}.".format(pano_ip))
     return key_node.text
 
