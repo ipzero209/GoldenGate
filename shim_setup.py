@@ -35,15 +35,21 @@ def getKey():
         logger.critical('Error retrieving API key from {}: {}'.format(pano_ip, err_node.text))
     key_node = key_xml.find('./result/key')
     logger.info("API key successfully retrieved from {}.".format(pano_ip))
+    saveInfo('pano_ip', pano_ip)
     return key_node.text
+
+def saveInfo(key_str, data):
+    """Used to shelve data for later use"""
+    s_data = shelve.open('./data') #TODO - /etc/pan_shim/data
+    s_data[key_str] = data
+    s_data.close()
+
 
 logger.info('Created log directory.')
 
 print "Welcome message" #TODO - print brief description of what the setup program will do.
 
 api_key = getKey()
-s_data = shelve.open('./data') #TODO - /etc/pan_shim/data
-s_data['api_key'] = api_key
-s_data.close()
+saveInfo('api_key', api_key)
 
 
