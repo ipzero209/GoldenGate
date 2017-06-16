@@ -13,7 +13,9 @@ key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQ
 
 prefix = "https://10.3.4.61/api/?type=op&cmd="
 
-xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
+        "m></show>&key=LUFRPT1SdzlWUXE0R0xBQTZTejBkbWJ4OVVvYWFxc0U9OC9kRkpwMWZ" \
+        "hUTY2emNrZ3hLaTRSNFBmM0hVdDdMeGlnWHE2UHJ3WXFMbz0="
 
 # Slot/Sensor match criteria
 
