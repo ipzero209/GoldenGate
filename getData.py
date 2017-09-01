@@ -313,7 +313,6 @@ for line in stats_text:
     update_dict['trend']['interface'][int_label]['rxe'] = int(j_line['rx-errs'])
 
 
-print sys.getsizeof(update_dict)
 
 
 
