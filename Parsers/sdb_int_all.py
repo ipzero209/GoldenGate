@@ -73,12 +73,6 @@ for line in rate_text:
     # dict_key = rate_slot_number + "/" + rate_int_number
     # rate_dict[dict_key] = label
 
-# Code for label generation
-
-# for key in int_dict:
-#     slot = int_dict[key]
-#     for sub_key in slot:
-#         print "ethernet" + key + "/" + sub_key
 
 
 

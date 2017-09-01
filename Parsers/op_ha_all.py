@@ -38,11 +38,14 @@ ha1_back_conn = ha_xml.find('./result/group/peer-info/conn-ha1-backup/conn-statu
 print ha1_back_conn
 ha2_prime_conn = ha_xml.find('./result/group/peer-info/conn-ha2/conn-status').text
 print ha2_prime_conn
-#TODO: Management link state - './result/group/peer-info/conn-status'?
+#Todo: mgmt_conn should be 'up' by default, only down when the initial call fails.
+mgmt_conn = 'up'
 ha2_back_conn = ha_xml.find('./result/group/peer-info/conn-ha2-backup/conn-status').text
 print ha2_back_conn
-ha3_conn = ha_xml.find('./result/group/peer-info/conn-ha3/conn-status').text
-#TODO: API call for 'last-error-reason'
+# ha3_conn = ha_xml.find('./result/group/peer-info/conn-ha3/conn-status').text
+failure_reason = ha_xml.find('./result/group/local-info/state-reason').text
+print failure_reason
+
 
 
 

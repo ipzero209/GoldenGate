@@ -10,9 +10,11 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
-prefix = "https://10.3.4.61/api/?type=op&cmd="
+prefix = "https://10.8.49.20/api/?type=op&cmd="
 
 xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+
 
 
 dp_cpu_req = requests.get(prefix + xpath, verify=False)
@@ -23,6 +25,7 @@ dp_cpu_text = dp_cpu_text.split('\n')
 for line in dp_cpu_text:
 	if line == "":
 		break
+	print line
 	line = line[line.find('{'):]
 	line = line.replace('\'', '"')
 	line = line.replace(', }', ' }')

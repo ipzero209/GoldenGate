@@ -20,5 +20,7 @@ mp_cpu_text = mp_cpu_xml.find('./result').text
 mp_cpu_text = mp_cpu_text[mp_cpu_text.find('{'):]
 mp_cpu_text = mp_cpu_text.replace('\'', '"')
 mp_cpu_text = mp_cpu_text.replace(', }', ' }')
+mp_cpu_text = mp_cpu_text.replace('}, ]', '} ]')
+print mp_cpu_text
 j_line = json.loads(mp_cpu_text)
-print j_line["cpu"]["1minavg"]
+# print j_line["cpu"]["1minavg"]
