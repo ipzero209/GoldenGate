@@ -14,7 +14,7 @@ import pudb
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.0', 'vm')
-#Note
+
 
 
 # To suppress certificate warnings
@@ -24,10 +24,12 @@ key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0sr
 prefix = "http://10.3.5.138/api/?type=op&cmd="
 pano_prefix =  "http://10.3.4.63/api/?type=op&cmd="
 
+
 update_dict = {'trend':{}}
+update_dict['env'] = {}
 update_dict['trend']['slot'] = {}
-update_dict['trend']['interface'] = {}
-update_dict['trend']['env'] = {}
+update_dict['trend']['i'] = {}
+# update_dict['trend']['env'] = {}
 update_dict['trend']['logging-external'] = {}
 update_dict['trend']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
 
@@ -48,8 +50,8 @@ mp_cpu_text = mp_cpu_text[mp_cpu_text.find('{'):]
 mp_cpu_text = mp_cpu_text.replace('\'', '"')
 mp_cpu_text = mp_cpu_text.replace(', }', ' }')
 mp_cpu_json = json.loads(mp_cpu_text)
-update_dict['trend']['mcp'] = int(mp_cpu_json['cpu']['1minavg'])
-#update_string = update_string + "mcp:{},".format(mp_cpu_json['cpu']['1minavg'])
+update_dict['trend']['m'] = int(mp_cpu_json['cpu']['1minavg'])
+#update_string = update_string + "m:{},".format(mp_cpu_json['cpu']['1minavg'])
 
 
 
@@ -80,7 +82,7 @@ mp_mem_text = re.sub(num_quote, '"', mp_mem_text)
 mp_mem_json = json.loads(mp_mem_text)
 used_mem_hex_str = mp_mem_json["used"]
 used_mem_int = int(used_mem_hex_str, 16)
-update_dict['trend']['mmm'] = used_mem_int
+update_dict['trend']['mm'] = used_mem_int
 #update_string = update_string + "mmm:{},".format(used_mem_int)
 
 
@@ -123,7 +125,7 @@ for line in dp_cpu_text:
             update_dict['trend']['slot'][slot_num] = {}
         if dp_num not in update_dict['trend']['slot'][slot_num]:
             update_dict['trend']['slot'][slot_num][dp_num] = {}
-        update_dict['trend']['slot'][slot_num][dp_num]['dcp'] = int(j_line['cpu']['1minavg'])
+        update_dict['trend']['slot'][slot_num][dp_num]['d'] = int(j_line['cpu']['1minavg'])
 
 
 
@@ -165,11 +167,11 @@ for line in session_text:
             update_dict['trend']['slot'][session_slot_number] = {}
         if session_dp_number not in update_dict['trend']['slot'][session_slot_number]:
             update_dict['trend']['slot'][session_slot_number][session_dp_number] = {}
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['cps'] = int(j_line['cps_installed'])
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['pps'] = int(j_line['throughput_pps'])
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['su'] = int(j_line['session_util'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['c'] = int(j_line['cps_installed'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['p'] = int(j_line['throughput_pps'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['u'] = int(j_line['session_util'])
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['sa'] = int(j_line['session_active'])
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['spu'] = int(j_line['session_ssl_proxy_util'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['su'] = int(j_line['session_ssl_proxy_util'])
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['sm'] = int(j_line['session_max'])
 
 
@@ -219,8 +221,8 @@ for line in pkt_text:
             update_dict['trend']['slot'][pkt_slot_number] = {}
         if pkt_dp_number not in update_dict['trend']['slot'][pkt_slot_number]:
             update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number] = {}
-    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pktb'] = int(j_line['hw-buf']['used'])
-    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pktd'] = int(j_line['pkt-descr']['used'])
+    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pb'] = int(j_line['hw-buf']['used'])
+    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pd'] = int(j_line['pkt-descr']['used'])
 
 
 
@@ -275,7 +277,7 @@ if thisFW.os_ver[:3] == "8.0":
         label = line[:line.find('{')]
         rate_slot_number = re.search(match_rate_slot, label).group(0)
         rate_int_number = re.search(match_rate_interface, label).group(0)
-        int_label = "ethernet{}/{}".format(str(rate_slot_number), str(rate_int_number))
+        int_label = "{}/{}".format(str(rate_slot_number), str(rate_int_number))
         line = line[line.find('{'):]
         line = line.replace('\'', '"')
         line = line.replace(', }', ' }')
@@ -283,16 +285,16 @@ if thisFW.os_ver[:3] == "8.0":
         line = re.sub(match_end, '",', line)
         line = re.sub(match_end_2, '"', line)
         j_line = json.loads(line)
-        if int_label not in update_dict['trend']['interface']:
-            update_dict['trend']['interface'][int_label] = {}
-        update_dict['trend']['interface'][int_label]['txb'] = int(j_line['tx-bytes'])
-        update_dict['trend']['interface'][int_label]['rxb'] = int(j_line['rx-bytes'])
-        update_dict['trend']['interface'][int_label]['txpb'] = int(j_line['tx-broadcast'])
-        update_dict['trend']['interface'][int_label]['rxpb'] = int(j_line['rx-broadcast'])
-        update_dict['trend']['interface'][int_label]['txpu'] = int(j_line['tx-unicast'])
-        update_dict['trend']['interface'][int_label]['rxpu'] = int(j_line['rx-unicast'])
-        update_dict['trend']['interface'][int_label]['txpm'] = int(j_line['tx-multicast'])
-        update_dict['trend']['interface'][int_label]['rxpm'] = int(j_line['rx-multicast'])
+        if int_label not in update_dict['trend']['i']:
+            update_dict['trend']['i'][int_label] = {}
+        update_dict['trend']['i'][int_label]['t'] = int(j_line['tx-bytes'])
+        update_dict['trend']['i'][int_label]['r'] = int(j_line['rx-bytes'])
+        update_dict['trend']['i'][int_label]['tb'] = int(j_line['tx-broadcast'])
+        update_dict['trend']['i'][int_label]['rb'] = int(j_line['rx-broadcast'])
+        update_dict['trend']['i'][int_label]['tu'] = int(j_line['tx-unicast'])
+        update_dict['trend']['i'][int_label]['ru'] = int(j_line['rx-unicast'])
+        update_dict['trend']['i'][int_label]['tm'] = int(j_line['tx-multicast'])
+        update_dict['trend']['i'][int_label]['rm'] = int(j_line['rx-multicast'])
 
 
 
@@ -314,15 +316,15 @@ for line in stats_text:
     label = line[:line.find('{')]
     stats_slot_number = re.search(match_stats_slot, label).group(0)
     stats_int_number = re.search(match_stats_interface, label).group(0)
-    int_label = "ethernet{}/{}".format(str(stats_slot_number), str(stats_int_number))
+    int_label = "{}/{}".format(str(stats_slot_number), str(stats_int_number))
     line = line[line.find('{'):]
     line = line.replace('\'', '"')
     line = line.replace(', }', ' }')
     j_line = json.loads(line)
-    if int_label not in update_dict['trend']['interface']:
-        update_dict['trend']['interface'][int_label] = {}
-    update_dict['trend']['interface'][int_label]['txe'] = int(j_line['tx-errs'])
-    update_dict['trend']['interface'][int_label]['rxe'] = int(j_line['rx-errs'])
+    if int_label not in update_dict['trend']['i']:
+        update_dict['trend']['i'][int_label] = {}
+    update_dict['trend']['i'][int_label]['te'] = int(j_line['tx-errs'])
+    update_dict['trend']['i'][int_label]['re'] = int(j_line['rx-errs'])
 
 
 
@@ -352,14 +354,14 @@ if (thisFW.os_ver[:3] == "8.0") and ("vm" not in thisFW.family):
     lograte_text = lograte_text[lograte_text.find(':'):]
     lograte_text = lograte_text[2:]
     lograte_int = int(lograte_text, 16)
-    update_dict['lr'] = lograte_int
+    update_dict['l'] = lograte_int
 else:
     lograte_req = requests.get(prefix + xpath_alt, verify=False)
     lograte_xml = et.fromstring(lograte_req.content)
     lograte_text = lograte_xml.find('./result').text
     lograte_text = lograte_text[lograte_text.find(':'):]
     lograte_text = lograte_text[2:]
-    update_dict['lr'] = int(lograte_text)
+    update_dict['l'] = int(lograte_text)
 
 
 
@@ -407,9 +409,9 @@ if "vm" not in thisFW.family:
         j_line = ast.literal_eval(resp_string)
         f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
         if f_string not in update_dict['trend']['env']:
-            update_dict['trend']['env'][f_string] = {}
-        update_dict['trend']['env'][f_string]['alrm'] = str(j_line['alarm'])
-        update_dict['trend']['env'][f_string]['rpm'] = int(j_line['avg'])
+            update_dict['env'][f_string] = {}
+        update_dict['env'][f_string]['alrm'] = str(j_line['alarm'])
+        update_dict['env'][f_string]['rpm'] = int(j_line['avg'])
 
 
 
@@ -457,9 +459,9 @@ if "vm" not in thisFW.family:
         line = re.sub(match_end, '", ', line)
         p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
         j_line = ast.literal_eval(line)
-        if p_string not in update_dict['trend']['env']:
-            update_dict['trend']['env'][p_string] = {}
-        update_dict['trend']['env'][p_string]['alrm'] = str(j_line['alarm'])
+        if p_string not in update_dict['env']:
+            update_dict['env'][p_string] = {}
+        update_dict['env'][p_string]['alrm'] = str(j_line['alarm'])
 
 
 ##########################################################
@@ -508,10 +510,10 @@ if "vm" not in thisFW.family:
         j_line = ast.literal_eval(line)
         t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
         if t_string not in update_dict['trend']['env']:
-            update_dict['trend']['env'][t_string] = {}
-        update_dict['trend']['env'][t_string]['alrm'] = str(j_line['alarm'])
-        update_dict['trend']['env'][t_string]['d'] = str(j_line['desc'])
-        update_dict['trend']['env'][t_string]['tm'] = float(j_line['avg'])
+            update_dict['env'][t_string] = {}
+        update_dict['env'][t_string]['alrm'] = str(j_line['alarm'])
+        update_dict['env'][t_string]['d'] = str(j_line['desc'])
+        update_dict['env'][t_string]['tm'] = float(j_line['avg'])
 
 
 
@@ -555,21 +557,21 @@ if thisFW.os_ver[:3] == "8.0":
 
 update_str = json.dumps(update_dict)
 
-# print update_str
+print update_str
 # print sys.getsizeof(update_dict)
 # print sys.getsizeof(update_str)
 
 
-pano_prefix = "http://10.3.4.63/api/?"
+pano_prefix = "http://10.3.4.63/api/?type=op"
 # paramlist = {}
 # datalist = {}
 # paramlist['type'] = 'op'
 # paramlist['key'] = 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 
-cmd = '&type=op&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]</data></external-input></monitoring>'.format(update_str)
+cmd = '&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
 update_req = requests.get(pano_prefix + cmd + key, verify=False)
-print update_req.url
+# print update_req.url
 print update_req.content
 
 
