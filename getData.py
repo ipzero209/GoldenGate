@@ -5,14 +5,15 @@ import xml.etree.ElementTree as et
 import json
 import re
 import panFW
+import ast
 # -------- Remove below here --------
 import sys
 import pudb
-
+# -------- Remove above here --------
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-thisFW = panFW.Device('009908000102', '10.8.49.20', '8.0.2', '7000')
+thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.0', 'vm')
 
 
 
@@ -20,11 +21,15 @@ thisFW = panFW.Device('009908000102', '10.8.49.20', '8.0.2', '7000')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
-prefix = "https://10.8.49.20/api/?type=op&cmd="
+prefix = "http://10.3.5.138/api/?type=op&cmd="
+pano_prefix =  "http://10.3.4.63/api/?type=op&cmd="
 
 update_dict = {'trend':{}}
 update_dict['trend']['slot'] = {}
 update_dict['trend']['interface'] = {}
+update_dict['trend']['env'] = {}
+update_dict['trend']['logging-external'] = {}
+update_dict['trend']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
 
 ##########################################################
 #
@@ -32,7 +37,8 @@ update_dict['trend']['interface'] = {}
 #
 ##########################################################
 
-xpath = "<show><system><state><filter>sys.monitor.s*.mp.exports</filter></state></system></show>"
+xpath = "<show><system><state><filter>sys.monitor.s*.mp.exports</filter></stat" \
+        "e></system></show>"
 
 
 mp_cpu_req = requests.get(prefix + xpath + key, verify=False)
@@ -54,7 +60,8 @@ update_dict['trend']['mcp'] = int(mp_cpu_json['cpu']['1minavg'])
 #
 ##########################################################
 
-xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></system></show>"
+xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></" \
+        "system></show>"
 
 mp_mem_req = requests.get(prefix + xpath + key, verify=False)
 mp_mem_xml = et.fromstring(mp_mem_req.content)
@@ -83,7 +90,8 @@ update_dict['trend']['mmm'] = used_mem_int
 #
 ##########################################################
 
-xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></state></system></show>"
+xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></sta" \
+        "te></system></show>"
 
 
 
@@ -126,7 +134,9 @@ for line in dp_cpu_text:
 ##########################################################
 
 #TODO - Review all fields with David ('su, spu, etc')
-xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.stats.session</filter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.stats.session</filter>" \
+        "</state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6" \
+        "TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
 
 # Slot/DP match criteria
@@ -166,12 +176,14 @@ for line in session_text:
 
 ##########################################################
 #
-#       Session Info
+#       Packet Buffer / Descriptor Info
 #
 ##########################################################
 
 
-xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.packetbuffers</filter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.packetbuffers</filter>" \
+        "</state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6" \
+        "TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
 
 # Slot/DP match criteria
@@ -215,7 +227,7 @@ for line in pkt_text:
 
 ##########################################################
 #
-#       Session Info
+#       Interface Info
 #
 ##########################################################
 
@@ -314,17 +326,250 @@ for line in stats_text:
 
 
 
+##########################################################
+#
+#       Log Rate
+#
+##########################################################
+
+
+xpath = "<show><system><state><filter>sw.mgmt.runtime.lograte</filter></state>" \
+        "</system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcw" \
+        "M3JHUGVhRlNiY0dCR0srNERUQT09"
+
+xpath_alt = "<show><system><state><filter>sw.logrcvr.runtime.write-lograte</fi" \
+            "lter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh" \
+            "0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+
+
+# Check both version and platform to see if this is a physical device vs. VM
+
+if (thisFW.os_ver[:3] == "8.0") and ("vm" not in thisFW.family):
+    lograte_req = requests.get(prefix + xpath, verify=False)
+    lograte_xml = et.fromstring(lograte_req.content)
+    lograte_text = lograte_xml.find('./result').text
+    lograte_text = lograte_text[lograte_text.find(':'):]
+    lograte_text = lograte_text[2:]
+    lograte_int = int(lograte_text, 16)
+    update_dict['lr'] = lograte_int
+else:
+    lograte_req = requests.get(prefix + xpath_alt, verify=False)
+    lograte_xml = et.fromstring(lograte_req.content)
+    lograte_text = lograte_xml.find('./result').text
+    lograte_text = lograte_text[lograte_text.find(':'):]
+    lograte_text = lograte_text[2:]
+    update_dict['lr'] = int(lograte_text)
 
 
 
 
+##########################################################
+#
+#       Environmentals - Fans
+#
+##########################################################
+
+
+
+if "vm" not in thisFW.family:
+    xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
+            "m></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3J" \
+            "HUGVhRlNiY0dCR0srNERUQT09"
+
+    match_end = re.compile(',(?= ")')
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_fan_slot = re.compile('(?<=env\.s)(.*)(?=\.fan)')
+    match_fan_number = re.compile('(?<=fan\.)(.*)(?=:)')
+
+
+    rate_req = requests.get(prefix + xpath, verify=False)
+    rate_xml = et.fromstring(rate_req.content)
+    rate_text = rate_xml.find('./result').text
+    # print rate_text
+
+
+
+    rate_text = rate_text.split('\n')
+
+    for resp_string in rate_text:
+        if resp_string == "":
+            break
+        label = resp_string[:resp_string.find('{')]
+        fan_slot_number = re.search(match_fan_slot, label).group(0)
+        fan_number = re.search(match_fan_number, label).group(0)
+        resp_string = resp_string[resp_string.find('{'):] # Need to pull the slot/fan# for the line before here.
+        resp_string = resp_string.replace('\'', '"')
+        resp_string = resp_string.replace(', }', ' }')
+        resp_string = resp_string.replace(', ]', ' ]')
+        resp_string = re.sub(match_begin, ': "', resp_string)
+        resp_string = re.sub(match_end, '", ', resp_string)
+        j_line = ast.literal_eval(resp_string)
+        f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
+        if f_string not in update_dict['trend']['env']:
+            update_dict['trend']['env'][f_string] = {}
+        update_dict['trend']['env'][f_string]['alrm'] = str(j_line['alarm'])
+        update_dict['trend']['env'][f_string]['rpm'] = int(j_line['avg'])
 
 
 
 
+##########################################################
+#
+#       Environmentals - Power
+#
+##########################################################
+
+
+if "vm" not in thisFW.family:
+    xpath = "<show><system><state><filter>env.s*.power.*</filter></state></sys" \
+            "tem></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM" \
+            "3JHUGVhRlNiY0dCR0srNERUQT09"
+
+    # Slot/Rail match criteria
+    pwr_slot_match = re.compile('(?<=env\.s)(.*)(?=\.power)')
+    pwr_rail_match = re.compile('(?<=power\.)(.*)(?=:)')
+
+    # Match criteria for JSON formatting
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
+
+
+    pwr_req = requests.get(prefix + xpath, verify=False)
+    pwr_xml = et.fromstring(pwr_req.content)
+    pwr_text = pwr_xml.find('./result').text
+    if pwr_text is None:
+        print "No power data"
+    else:
+        pwr_text = pwr_text.split('\n')
+
+    for line in pwr_text:
+        if line == "":
+            break
+        label = line[:line.find('{')]
+        pwr_slot_number = re.search(pwr_slot_match, label).group(0)
+        pwr_rail_number = re.search(pwr_rail_match, label).group(0)
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = re.sub(match_begin, ': "', line)
+        line = re.sub(match_end, '", ', line)
+        p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
+        j_line = ast.literal_eval(line)
+        if p_string not in update_dict['trend']['env']:
+            update_dict['trend']['env'][p_string] = {}
+        update_dict['trend']['env'][p_string]['alrm'] = str(j_line['alarm'])
+
+
+##########################################################
+#
+#       Environmentals - Thermal
+#
+##########################################################
+
+
+if "vm" not in thisFW.family:
+    xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
+            "m></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGV" \
+            "hRlNiY0dCR0srNERUQT09"
+
+    # Slot/Sensor match criteria
+
+    match_therm_slot = re.compile('(?<=env\.s)(.*)(?=\.therm)')
+    match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
+
+    # Match criteria for JSON formatting
+    match_begin = re.compile(': (?=[A-Z0-9\-])')
+    match_end = re.compile(',(?= ")')
+
+
+    therm_req = requests.get(prefix + xpath, verify=False)
+
+    therm_xml = et.fromstring(therm_req.content)
+    therm_text = therm_xml.find('./result').text
+    if therm_text == None:
+        print "No thermal data"
+    else:
+        therm_text = therm_text.split('\n')
+
+    for line in therm_text:
+        if line == "":
+            break
+        label = line[:line.find('{')]
+        therm_slot_number = re.search(match_therm_slot, label).group(0)
+        therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = line.replace(', ]', ' ]')
+        line = re.sub(match_begin, ': "', line)
+        line = re.sub(match_end, '", ', line)
+        j_line = ast.literal_eval(line)
+        t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+        if t_string not in update_dict['trend']['env']:
+            update_dict['trend']['env'][t_string] = {}
+        update_dict['trend']['env'][t_string]['alrm'] = str(j_line['alarm'])
+        update_dict['trend']['env'][t_string]['d'] = str(j_line['desc'])
+        update_dict['trend']['env'][t_string]['tm'] = float(j_line['avg'])
 
 
 
+##########################################################
+#
+#       Log Forwarding
+#
+##########################################################
 
+
+if thisFW.os_ver[:3] == "8.0":
+
+    autotag = ['autotag', {'avg':'sw.logrcvr.autotag_avg_send_rate', 'sent':'sw.logrcvr.autotag_sent_count',
+                'drop':'sw.logrcvr.autotag_drop_count'}]
+
+    http = ['http', {'avg':'sw.logrcvr.http_avg_send_rate','sent':'sw.logrcvr.http_sent_count',
+                 'drop':'sw.logrcvr.http_drop_count'}]
+
+    raw = ['raw', {'avg':'sw.logrcvr.raw_avg_send_rate', 'sent':'sw.logrcvr.raw_sent_count',
+                 'drop':'sw.logrcvr.raw_drop_count'}]
+
+    email = ['email', {'avg':'sw.logrcvr.email_avg_send_rate', 'sent':'sw.logrcvr.email_sent_count',
+                  'drop':'sw.logrcvr.email_drop_count'}]
+
+    snmp = ['snmp', {'avg':'sw.logrcvr.snmp_avg_send_rate', 'sent':'sw.logrcvr.snmp_sent_count',
+                 'drop':'sw.logrcvr.snmp_drop_count'}]
+
+    syslog = ['syslog', {'avg':'sw.logrcvr.syslog_avg_send_rate', 'sent':'sw.logrcvr.syslog_sent_count',
+                   'drop':'sw.logrcvr.syslog_drop_count'}]
+
+    node_list = [autotag, http, raw, email, snmp, syslog]
+
+    for node in node_list:
+        for m_key in node[1]:
+            xpath = "<show><system><state><filter>{}</filter></state></system></show>".format(node[1][m_key])
+            node_req = requests.get(prefix + xpath + key, verify=False)
+            node_xml = et.fromstring(node_req.content)
+            node_text = node_xml.find('./result').text
+            node_text = node_text[node_text.find(': ') + 2:]
+            update_dict['trend']['logging-external']['external'][node[0]][m_key] = int(node_text)
+
+update_str = json.dumps(update_dict)
+
+# print update_str
+# print sys.getsizeof(update_dict)
+# print sys.getsizeof(update_str)
+
+
+pano_prefix = "http://10.3.4.63/api/?"
+# paramlist = {}
+# datalist = {}
+# paramlist['type'] = 'op'
+# paramlist['key'] = 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
+key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
+
+cmd = '&type=op&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]</data></external-input></monitoring>'.format(update_str)
+update_req = requests.get(pano_prefix + cmd + key, verify=False)
+print update_req.url
+print update_req.content
 
 

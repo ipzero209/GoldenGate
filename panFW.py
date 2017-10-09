@@ -13,7 +13,7 @@ class Device:
         self.ser_num = ser_num
         self.mgmt_ip = mgmt_ip
         self.os_ver = os_ver
-        self.familty = family
+        self.family = family
         if is_ha == 'no':
             self.ha_peer = "No Peer"
             self.ha_state = "No State"
