@@ -26,10 +26,10 @@ pano_prefix =  "http://10.3.4.63/api/?type=op&cmd="
 
 
 update_dict = {'trend':{}}
-update_dict['env'] = {}
+update_dict['status'] = {}
 update_dict['trend']['slot'] = {}
 update_dict['trend']['i'] = {}
-# update_dict['trend']['env'] = {}
+# update_dict['trend']['status'] = {}
 update_dict['trend']['logging-external'] = {}
 update_dict['trend']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
 
@@ -408,10 +408,10 @@ if "vm" not in thisFW.family:
         resp_string = re.sub(match_end, '", ', resp_string)
         j_line = ast.literal_eval(resp_string)
         f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
-        if f_string not in update_dict['trend']['env']:
-            update_dict['env'][f_string] = {}
-        update_dict['env'][f_string]['alrm'] = str(j_line['alarm'])
-        update_dict['env'][f_string]['rpm'] = int(j_line['avg'])
+        if f_string not in update_dict['status']:
+            update_dict['status'][f_string] = {}
+        update_dict['status'][f_string]['alrm'] = str(j_line['alarm'])
+        update_dict['status'][f_string]['rpm'] = int(j_line['avg'])
 
 
 
@@ -459,9 +459,9 @@ if "vm" not in thisFW.family:
         line = re.sub(match_end, '", ', line)
         p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
         j_line = ast.literal_eval(line)
-        if p_string not in update_dict['env']:
-            update_dict['env'][p_string] = {}
-        update_dict['env'][p_string]['alrm'] = str(j_line['alarm'])
+        if p_string not in update_dict['status']:
+            update_dict['status'][p_string] = {}
+        update_dict['status'][p_string]['alrm'] = str(j_line['alarm'])
 
 
 ##########################################################
@@ -509,11 +509,11 @@ if "vm" not in thisFW.family:
         line = re.sub(match_end, '", ', line)
         j_line = ast.literal_eval(line)
         t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-        if t_string not in update_dict['trend']['env']:
-            update_dict['env'][t_string] = {}
-        update_dict['env'][t_string]['alrm'] = str(j_line['alarm'])
-        update_dict['env'][t_string]['d'] = str(j_line['desc'])
-        update_dict['env'][t_string]['tm'] = float(j_line['avg'])
+        if t_string not in update_dict['status']:
+            update_dict['status'][t_string] = {}
+        update_dict['status'][t_string]['alrm'] = str(j_line['alarm'])
+        update_dict['status'][t_string]['d'] = str(j_line['desc'])
+        update_dict['status'][t_string]['tm'] = float(j_line['avg'])
 
 
 
