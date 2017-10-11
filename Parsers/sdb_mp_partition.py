@@ -11,7 +11,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
-prefix = "https://10.3.4.61/api/?type=op&cmd="
+prefix = "https://10.3.5.138/api/?type=op&cmd="
 
 partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
                   "r></state></system></show>&key=LUFRPT1SdzlWUXE0R0xBQTZTejBkb" \

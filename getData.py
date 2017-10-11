@@ -8,21 +8,21 @@ import panFW
 import ast
 # -------- Remove below here --------
 import sys
-import pudb
+# import pudb
 # -------- Remove above here --------
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.0', 'vm')
+thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.5', 'vm')
 
 
 
 # To suppress certificate warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
-prefix = "http://10.3.5.138/api/?type=op&cmd="
-pano_prefix =  "http://10.3.4.63/api/?type=op&cmd="
+api_key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+prefix = "https://10.3.5.138/api/?type=op&cmd="
+pano_prefix =  "https://10.3.4.63/api/?type=op&cmd="
 
 
 update_dict = {'trend':{}}
@@ -30,9 +30,9 @@ update_dict['status'] = {}
 update_dict['trend']['slot'] = {}
 update_dict['trend']['i'] = {}
 # update_dict['trend']['status'] = {}
-update_dict['trend']['logging-external'] = {}
-update_dict['trend']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
-
+update_dict['status']['logging-external'] = {}
+update_dict['status']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
+update_dict['status']['ports'] = {}
 ##########################################################
 #
 #       MP CPU
@@ -43,7 +43,7 @@ xpath = "<show><system><state><filter>sys.monitor.s*.mp.exports</filter></stat" 
         "e></system></show>"
 
 
-mp_cpu_req = requests.get(prefix + xpath + key, verify=False)
+mp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
 mp_cpu_xml = et.fromstring(mp_cpu_req.content)
 mp_cpu_text = mp_cpu_xml.find('./result').text
 mp_cpu_text = mp_cpu_text[mp_cpu_text.find('{'):]
@@ -65,7 +65,7 @@ update_dict['trend']['m'] = int(mp_cpu_json['cpu']['1minavg'])
 xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></" \
         "system></show>"
 
-mp_mem_req = requests.get(prefix + xpath + key, verify=False)
+mp_mem_req = requests.get(prefix + xpath + api_key, verify=False)
 mp_mem_xml = et.fromstring(mp_mem_req.content)
 mp_mem_text = mp_mem_xml.find('./result').text
 mp_mem_text = mp_mem_text[mp_mem_text.find('{'):]
@@ -80,9 +80,12 @@ mp_mem_text = re.sub(match_begin, ': "', mp_mem_text)
 mp_mem_text = re.sub(match_end_2, '"', mp_mem_text)
 mp_mem_text = re.sub(num_quote, '"', mp_mem_text)
 mp_mem_json = json.loads(mp_mem_text)
-used_mem_hex_str = mp_mem_json["used"]
+used_mem_hex_str = mp_mem_json['used']
 used_mem_int = int(used_mem_hex_str, 16)
-update_dict['trend']['mm'] = used_mem_int
+total_mem_hex_str = mp_mem_json['size']
+total_mem_int = int(total_mem_hex_str, 16)
+used_mem_pct = (float(used_mem_int)/float(total_mem_int)) * 100  #TODO: round if you have time
+update_dict['trend']['mm'] = used_mem_pct
 #update_string = update_string + "mmm:{},".format(used_mem_int)
 
 
@@ -97,7 +100,7 @@ xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></sta" 
 
 
 
-dp_cpu_req = requests.get(prefix + xpath + key, verify=False)
+dp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
 dp_cpu_xml = et.fromstring(dp_cpu_req.content)
 dp_cpu_text = dp_cpu_xml.find('./result').text
 dp_cpu_text = dp_cpu_text.split('\n')
@@ -120,12 +123,17 @@ for line in dp_cpu_text:
     line = line.replace('\'', '"')
     line = line.replace(', }', ' }')
     j_line = json.loads(line)
+    d_cpu_list = []
     if j_line:
         if slot_num not in update_dict['trend']['slot']:
             update_dict['trend']['slot'][slot_num] = {}
         if dp_num not in update_dict['trend']['slot'][slot_num]:
             update_dict['trend']['slot'][slot_num][dp_num] = {}
         update_dict['trend']['slot'][slot_num][dp_num]['d'] = int(j_line['cpu']['1minavg'])
+        d_cpu_list.append(int(j_line['cpu']['1minavg']))
+dcpu_avg = float(sum(d_cpu_list))/float(len(d_cpu_list))
+update_dict['trend']['d'] = dcpu_avg
+
 
 
 
@@ -135,7 +143,7 @@ for line in dp_cpu_text:
 #
 ##########################################################
 
-#TODO - Review all fields with David ('su, spu, etc')
+
 xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.stats.session</filter>" \
         "</state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6" \
         "TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
@@ -162,6 +170,9 @@ for line in session_text:
     line = line.replace('\'', '"')
     line = line.replace(', }', ' }')
     j_line = json.loads(line)
+    t_total = 0
+    c_total = 0
+    sa_total = 0
     if j_line:
         if session_slot_number not in update_dict['trend']['slot']:
             update_dict['trend']['slot'][session_slot_number] = {}
@@ -173,6 +184,12 @@ for line in session_text:
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['sa'] = int(j_line['session_active'])
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['su'] = int(j_line['session_ssl_proxy_util'])
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['sm'] = int(j_line['session_max'])
+        t_total = t_total + int(j_line['throughput_kbps'])
+        c_total = c_total + int(j_line['cps_installed'])
+        sa_total = sa_total + int(j_line['session_active'])
+    update_dict['trend']['t'] = t_total
+    update_dict['trend']['c'] = c_total
+    update_dict['trend']['s'] = sa_total
 
 
 
@@ -328,6 +345,60 @@ for line in stats_text:
 
 
 
+
+
+
+##########################################################
+#
+#       Interface State
+#
+##########################################################
+
+
+
+
+
+state_xpath = "<show><system><state><filter>sw.dev.runtime.ifmon.port-states</f" \
+              "ilter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpne" \
+              "mh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+
+
+
+match_begin = re.compile(': (?=[0-9a-fA-Z])')
+match_end = re.compile(',(?= ")')
+#match_end_2 = re.compile(' (?=[0-9a-zA-Z])')
+match_brace = re.compile('(?<=[A-Za-z0-9]) }')
+
+
+state_req = requests.get(prefix + state_xpath, verify=False)
+state_xml = et.fromstring(state_req.content)
+state_text = state_xml.find('./result').text
+if state_text is None:
+    print "No port state data"
+else:
+    state_text = state_text.split('\n')
+
+
+line = state_text[0]
+line = line[line.find('{'):]
+line = line.replace('\'', '"')
+line = line.replace(', }', ' }')
+line = re.sub(match_begin, ':"', line)
+line = re.sub(match_end, '",', line)
+# line = re.sub(match_end_2, '"', line)
+line = re.sub(match_brace, '" }', line)
+line = line.replace('}"', '}')
+j_line = json.loads(line)
+
+for key in j_line:
+    if j_line[key]['link'] == "Up":
+        p_status = 1
+    else:
+        p_status = 0
+    update_dict['status']['ports'][key] = {'pu' : p_status}
+
+
 ##########################################################
 #
 #       Log Rate
@@ -361,7 +432,7 @@ else:
     lograte_text = lograte_xml.find('./result').text
     lograte_text = lograte_text[lograte_text.find(':'):]
     lograte_text = lograte_text[2:]
-    update_dict['l'] = int(lograte_text)
+    update_dict['trend']['l'] = int(lograte_text)
 
 
 
@@ -515,6 +586,32 @@ if "vm" not in thisFW.family:
         update_dict['status'][t_string]['d'] = str(j_line['desc'])
         update_dict['status'][t_string]['tm'] = float(j_line['avg'])
 
+##########################################################
+#
+#       Environmentals - Disk Partitions
+#
+##########################################################
+
+
+#TODO: updatedict['status']['enviromentals']['mounts'] = pancfg/panlogs/etc
+
+# ['size'] = 's'
+# ['used'] = 'u'
+# ['available'] = 'a'
+# ['pct-used'] = 'put'
+
+##########################################################
+#
+#       Environmentals - Raid Status
+#
+##########################################################
+
+# TODO: updatedict['status']['environmentals']['disk']['fake1']['fake2']['0']...
+
+# sys.raid.s*.ld*.drives = for 0 and 1, include name ('n'), size('z') and status('s')
+# status
+# active sync = '1'
+
 
 
 ##########################################################
@@ -549,11 +646,11 @@ if thisFW.os_ver[:3] == "8.0":
     for node in node_list:
         for m_key in node[1]:
             xpath = "<show><system><state><filter>{}</filter></state></system></show>".format(node[1][m_key])
-            node_req = requests.get(prefix + xpath + key, verify=False)
+            node_req = requests.get(prefix + xpath + api_key, verify=False)
             node_xml = et.fromstring(node_req.content)
             node_text = node_xml.find('./result').text
             node_text = node_text[node_text.find(': ') + 2:]
-            update_dict['trend']['logging-external']['external'][node[0]][m_key] = int(node_text)
+            update_dict['status']['logging-external']['external'][node[0]][m_key] = int(node_text)
 
 update_str = json.dumps(update_dict)
 
