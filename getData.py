@@ -35,6 +35,7 @@ update_dict['status']['logging-external']['external'] = {'autotag':{}, 'http':{}
 update_dict['status']['ports'] = {}
 update_dict['status']['environmentals'] = {}
 update_dict['status']['environmentals']['mounts'] = {}
+update_dict['status']['environmentals']['disks'] = {}
 
 ##########################################################
 #
@@ -138,7 +139,6 @@ for line in dp_cpu_text:
         d_cpu_list.append(int(j_line['cpu']['1minavg']))
 dcpu_avg = float(sum(d_cpu_list))/float(len(d_cpu_list))
 update_dict['trend']['d'] = dcpu_avg
-
 
 
 
@@ -626,9 +626,9 @@ if "vm" not in thisFW.family:
     match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
 
     # Match criteria for JSON formatting
-    match_begin = re.compile(': (?=[A-Z0-9\-])')
+    match_begin = re.compile(': (?=[A-Z0-9\-\[])')
     match_end = re.compile(',(?= ")')
-
+    # match_wonk = re.compile('[0-9]\](?=,)')
 
     therm_req = requests.get(prefix + xpath, verify=False)
 
@@ -638,7 +638,7 @@ if "vm" not in thisFW.family:
         print "No thermal data"
     else:
         therm_text = therm_text.split('\n')
-    if thisFW.family == "7000" | "800" | "220" | "500" | "3000" | "5000":
+    if thisFW.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
         for line in therm_text:
             if line == "":
                 break
@@ -660,8 +660,8 @@ if "vm" not in thisFW.family:
             update_dict['status'][t_string]['tm'] = float(j_line['avg'])
 
     else:
-        for line in therm_textL
-            if line = "":
+        for line in therm_text:
+            if line == "":
                 break
             label = line[:line.find('{')]
             therm_slot_number = re.search(match_therm_slot, label).group(0)
@@ -672,9 +672,9 @@ if "vm" not in thisFW.family:
             line = line.replace(', ]', ' ]')
             line = re.sub(match_begin, ': "', line)
             line = re.sub(match_end, '", ', line)
-            line = line.replace(']"', ']')
+            # line = line.replace(']"', ']')
             line = re.sub(match_end_2, '" ', line)
-            line = re.sub(match_wonk, '"', line)
+            # line = re.sub(match_wonk, '"', line)
             j_line = ast.literal_eval(line)
             t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
             if t_string not in update_dict['status']:
@@ -688,6 +688,7 @@ if "vm" not in thisFW.family:
 #       Environmentals - Disk Partitions
 #
 ##########################################################
+
 
 
 
@@ -746,6 +747,58 @@ for key in j_line:
 # status
 # active sync = '1'
 
+raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
+             "te></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6T" \
+             "GM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+if thisFW.family == ("5200" or "7000"):
+
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
+
+    match_raid_slot = re.compile('(?<=raid\.s)(.*)(?=\.ld)')
+    match_raid_ld = re.compile('(?<=\.ld)(.*)(?=\.drives)')
+
+    raid_req = requests.get(prefix + raid_xpath, verify=False)
+    raid_xml = et.fromstring(raid_req.content)
+    raid_text = raid_xml.find('./result').text
+
+
+    if raid_text is None:
+        print "No RAID data"
+    else:
+        raid_text = raid_text.split('\n')
+
+    for line in raid_text:
+        if line == "":
+            break
+        label = line[:line.find('{')]
+        raid_slot_number = re.search(match_raid_slot, label).group(0)
+        raid_slot_number = "s{}".format(raid_slot_number)
+        raid_ld_number = re.search(match_raid_ld, label).group(0)
+        raid_ld_number = "l{}".format(raid_ld_number)
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = re.sub(match_begin, ':"', line)
+        line = re.sub(match_end, '",', line)
+        line = re.sub(match_end_2, '"', line)
+        line = line.replace('}"', '} ')
+        j_line = json.loads(line)
+        if raid_slot_number not in update_dict['status']['environmentals']['disks']:
+            update_dict['status']['environmentals']['disks'][raid_slot_number] = {}
+        if raid_ld_number not in update_dict['status']['environmentals']['disks'][raid_slot_number]:
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number] = {}
+        for n in range(0, 2):
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n] = {}
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['n'] = str(j_line[str(n)]['name'])
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['z'] = str(j_line[str(n)]['size'])
+            if j_line[str(n)]['status'] == 'active sync':
+                update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 1
+            else:
+                update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 0
+
 
 
 ##########################################################
@@ -788,7 +841,7 @@ if thisFW.os_ver[:3] == "8.0":
 
 update_str = json.dumps(update_dict)
 
-
+print update_str
 
 
 pano_prefix = "http://10.3.4.63/api/?type=op"
@@ -798,7 +851,7 @@ pano_prefix = "http://10.3.4.63/api/?type=op"
 # paramlist['key'] = 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 
-cmd = '&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
+cmd = '&cmd=<monitoring><external-input><device>012501000206</device><data><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
 update_req = requests.get(pano_prefix + cmd + key, verify=False)
 # print update_req.url
 print update_req.content
