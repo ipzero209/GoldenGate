@@ -13,7 +13,7 @@ import sys
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.5', 'vm')
+thisFW = panFW.Device('009908000102', '10.8.49.29', '8.0.5', '5200')
 
 
 
@@ -21,7 +21,7 @@ thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.5', 'vm')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 api_key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
-prefix = "https://10.3.5.138/api/?type=op&cmd="
+prefix = "https://10.8.49.29/api/?type=op&cmd="
 pano_prefix =  "https://10.3.4.63/api/?type=op&cmd="
 
 
@@ -638,26 +638,50 @@ if "vm" not in thisFW.family:
         print "No thermal data"
     else:
         therm_text = therm_text.split('\n')
+    if thisFW.family == "7000" | "800" | "220" | "500" | "3000" | "5000":
+        for line in therm_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            therm_slot_number = re.search(match_therm_slot, label).group(0)
+            therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = line.replace(', ]', ' ]')
+            line = re.sub(match_begin, ': "', line)
+            line = re.sub(match_end, '", ', line)
+            j_line = ast.literal_eval(line)
+            t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+            if t_string not in update_dict['status']:
+                update_dict['status'][t_string] = {}
+            update_dict['status'][t_string]['alrm'] = str(j_line['alarm'])
+            update_dict['status'][t_string]['d'] = str(j_line['desc'])
+            update_dict['status'][t_string]['tm'] = float(j_line['avg'])
 
-    for line in therm_text:
-        if line == "":
-            break
-        label = line[:line.find('{')]
-        therm_slot_number = re.search(match_therm_slot, label).group(0)
-        therm_sensor_number = re.search(match_therm_sensor, label).group(0)
-        line = line[line.find('{'):]
-        line = line.replace('\'', '"')
-        line = line.replace(', }', ' }')
-        line = line.replace(', ]', ' ]')
-        line = re.sub(match_begin, ': "', line)
-        line = re.sub(match_end, '", ', line)
-        j_line = ast.literal_eval(line)
-        t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-        if t_string not in update_dict['status']:
-            update_dict['status'][t_string] = {}
-        update_dict['status'][t_string]['alrm'] = str(j_line['alarm'])
-        update_dict['status'][t_string]['d'] = str(j_line['desc'])
-        update_dict['status'][t_string]['tm'] = float(j_line['avg'])
+    else:
+        for line in therm_textL
+            if line = "":
+                break
+            label = line[:line.find('{')]
+            therm_slot_number = re.search(match_therm_slot, label).group(0)
+            therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = line.replace(', ]', ' ]')
+            line = re.sub(match_begin, ': "', line)
+            line = re.sub(match_end, '", ', line)
+            line = line.replace(']"', ']')
+            line = re.sub(match_end_2, '" ', line)
+            line = re.sub(match_wonk, '"', line)
+            j_line = ast.literal_eval(line)
+            t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+            if t_string not in update_dict['status']:
+                update_dict['status'][t_string] = {}
+            update_dict['status'][t_string]['alrm'] = str(j_line['alarm'])
+            update_dict['status'][t_string]['d'] = str(j_line['desc'])
+            update_dict['status'][t_string]['tm'] = str(j_line['avg'])
 
 ##########################################################
 #
