@@ -33,6 +33,9 @@ update_dict['trend']['i'] = {}
 update_dict['status']['logging-external'] = {}
 update_dict['status']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
 update_dict['status']['ports'] = {}
+update_dict['status']['environmentals'] = {}
+update_dict['status']['environmentals']['mounts'] = {}
+
 ##########################################################
 #
 #       MP CPU
@@ -460,7 +463,7 @@ line = line.replace('}"', '}')
 j_line = json.loads(line)
 
 
-#TODO: Work with David on interface count for VMs.
+#TODO: Release note the interface count issue.
 for key in j_line:
     if j_line[key]['link'] == "Up":
         p_status = 1
@@ -663,12 +666,49 @@ if "vm" not in thisFW.family:
 ##########################################################
 
 
-#TODO: updatedict['status']['enviromentals']['mounts'] = pancfg/panlogs/etc
 
-# ['size'] = 's'
-# ['used'] = 'u'
-# ['available'] = 'a'
-# ['pct-used'] = 'put'
+
+partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
+                  "r></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpne" \
+                  "mh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+match_begin = re.compile(': (?=[0-9a-fA-Z])')
+match_end = re.compile(',(?= ")')
+match_end_2 = re.compile(' (?=})')
+match_brace = re.compile('(?<=[A-Za-z0-9]) }')
+
+
+part_req = requests.get(prefix + partition_xpath, verify=False)
+part_xml = et.fromstring(part_req.content)
+part_text = part_xml.find('./result').text
+
+
+
+line = part_text[part_text.find('{'):]
+line = line.replace('\'', '"')
+line = line.replace(', }', ' }')
+line = re.sub(match_begin, ':"', line)
+line = re.sub(match_end, '",', line)
+line = re.sub(match_brace, '" }', line)
+line = line.replace('}"', '}')
+j_line = json.loads(line)
+for key in j_line:
+    if key not in update_dict['status']['environmentals']['mounts']:
+        update_dict['status']['environmentals']['mounts'][key] = {}
+    size = int(j_line[key]['size'], 16)
+    used = int(j_line[key]['used'], 16)
+    avail = size - used
+    pct_used = round((float(used)/float(size))*100, 0)
+    update_dict['status']['environmentals']['mounts'][key]['s'] = size
+    update_dict['status']['environmentals']['mounts'][key]['u'] = used
+    update_dict['status']['environmentals']['mounts'][key]['a'] = avail
+    update_dict['status']['environmentals']['mounts'][key]['put'] = pct_used
+
+
+
+
+
+
 
 ##########################################################
 #
@@ -739,6 +779,6 @@ key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0sr
 cmd = '&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
 update_req = requests.get(pano_prefix + cmd + key, verify=False)
 # print update_req.url
-# print update_req.content
+print update_req.content
 
 
