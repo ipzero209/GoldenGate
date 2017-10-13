@@ -46,10 +46,11 @@ line = line.replace('}"', '}')
 j_line = json.loads(line)
 
 for key in j_line:
-    if j_line[key]['link'] == "Up":
-        p_status = 1
-    else:
-        p_status = 0
+    print str(key) + "\t" + str(j_line[key]['type'])
+    # if j_line[key]['link'] == "Up":
+    #     p_status = 1
+    # else:
+    #     p_status = 0
 
 
 

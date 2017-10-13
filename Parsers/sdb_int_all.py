@@ -5,7 +5,7 @@ import xml.etree.ElementTree as et
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import json
 import re
-import pudb
+
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 

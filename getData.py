@@ -75,6 +75,8 @@ mp_mem_text = mp_mem_text.replace(', }', ' }')
 match_begin = re.compile(': (?=[0-9a-fA-Z])')
 match_end = re.compile(',(?= ")')
 match_end_2 = re.compile(' (?=})')
+
+
 num_quote = re.compile('(?=, )')
 mp_mem_text = re.sub(match_begin, ': "', mp_mem_text)
 mp_mem_text = re.sub(match_end_2, '"', mp_mem_text)
@@ -246,7 +248,7 @@ for line in pkt_text:
 
 ##########################################################
 #
-#       Interface Info
+#       Interface Stats & Rate
 #
 ##########################################################
 
@@ -259,6 +261,12 @@ rate_xpath = "<show><system><state><filter>sys.s*.p*.rate</filter></state></sy" 
 stats_xpath = "<show><system><state><filter>net.s*.eth*.stats</filter></state>" \
               "</system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TG" \
               "M9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+err_xpath = "<show><system><state><filter>sys.s*.p*.detail</filter></state></sy" \
+            "stem></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM" \
+            "3JHUGVhRlNiY0dCR0srNERUQT09"
+
+
 
 match_begin = re.compile(': (?=[0-9a-fA-Z])')
 match_end = re.compile(',(?= ")')
@@ -317,35 +325,95 @@ if thisFW.os_ver[:3] == "8.0":
 
 
 
+#TODO: Remove stats section
+
+# stats_req = requests.get(prefix + stats_xpath, verify=False)
+# stats_xml = et.fromstring(stats_req.content)
+# stats_text = stats_xml.find('./result').text
+# if stats_text == None:
+#     print "No status info"
+# stats_text = stats_text.split('\n')
+#
+#
+# for line in stats_text:
+#     if line == "":
+#         break
+#     label = line[:line.find('{')]
+#     stats_slot_number = re.search(match_stats_slot, label).group(0)
+#     stats_int_number = re.search(match_stats_interface, label).group(0)
+#     int_label = "{}/{}".format(str(stats_slot_number), str(stats_int_number))
+#     line = line[line.find('{'):]
+#     line = line.replace('\'', '"')
+#     line = line.replace(', }', ' }')
+#     j_line = json.loads(line)
+#     if int_label not in update_dict['trend']['i']:
+#         update_dict['trend']['i'][int_label] = {}
+#     update_dict['trend']['i'][int_label]['te'] = int(j_line['tx-errs'])
+#     update_dict['trend']['i'][int_label]['re'] = int(j_line['rx-errs'])
 
 
-stats_req = requests.get(prefix + stats_xpath, verify=False)
-stats_xml = et.fromstring(stats_req.content)
-stats_text = stats_xml.find('./result').text
-if stats_text == None:
-    print "No status info"
-stats_text = stats_text.split('\n')
 
 
-for line in stats_text:
+
+##########################################################
+#
+#       Interface Errors
+#
+##########################################################
+
+
+match_begin = re.compile(': (?=[0-9a-fA-Z])')
+match_end = re.compile(',(?= ")')
+match_end_2 = re.compile(' (?=})')
+num_quote = re.compile('(?=, )')
+
+match_err_slot = re.compile('(?<=sys\.s)(.*)(?=\.p)')
+match_err_interface = re.compile('(?<=\.p)(.*)(?=\.detail)')
+
+
+
+
+err_req = requests.get(prefix + err_xpath, verify=False)
+err_req_xml = et.fromstring(err_req.content)
+err_text = err_req_xml.find('./result').text
+
+if err_text is None:
+    print "No error data"
+else: err_text = err_text.split('\n')
+
+for line in err_text:
     if line == "":
         break
     label = line[:line.find('{')]
-    stats_slot_number = re.search(match_stats_slot, label).group(0)
-    stats_int_number = re.search(match_stats_interface, label).group(0)
-    int_label = "{}/{}".format(str(stats_slot_number), str(stats_int_number))
+    err_slot_number = re.search(match_err_slot, label).group(0)
+    err_int_number = re.search(match_err_interface, label).group(0)
+    int_label = "{}/{}".format(str(err_slot_number), str(err_int_number))
     line = line[line.find('{'):]
-    line = line.replace('\'', '"')
-    line = line.replace(', }', ' }')
-    j_line = json.loads(line)
-    if int_label not in update_dict['trend']['i']:
-        update_dict['trend']['i'][int_label] = {}
-    update_dict['trend']['i'][int_label]['te'] = int(j_line['tx-errs'])
-    update_dict['trend']['i'][int_label]['re'] = int(j_line['rx-errs'])
-
-
-
-
+    if len(line) == 3:
+        pass
+    else:
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = re.sub(match_begin, ': "', line)
+        line = re.sub(num_quote, '"', line)
+        line = re.sub(match_end_2, '"', line)
+        j_line = json.loads(line)
+        if "mac_transmit_err" in j_line:
+            if int_label not in update_dict['trend']['i']:
+                update_dict['trend']['i'][int_label] = {}
+            te_int = int(j_line['mac_transmit_err'])
+            update_dict['trend']['i'][int_label]['te'] = te_int
+        if "mac_rcv_err" in j_line:
+            if int_label not in update_dict['trend']['i']:
+                update_dict['trend']['i'][int_label] = {}
+            re_int = int(j_line['mac_rcv_err'])
+            update_dict['trend']['i'][int_label]['re'] = re_int
+        if "rcv_fifo_overrun" in j_line:
+            if int_label not in update_dict['trend']['i']:
+                update_dict['trend']['i'][int_label] = {}
+            rd_int = int(j_line['rcv_fifo_overrun'])
+            update_dict['trend']['i'][int_label]['rd'] = rd_int
 
 
 ##########################################################
@@ -391,6 +459,8 @@ line = re.sub(match_brace, '" }', line)
 line = line.replace('}"', '}')
 j_line = json.loads(line)
 
+
+#TODO: Work with David on interface count for VMs.
 for key in j_line:
     if j_line[key]['link'] == "Up":
         p_status = 1
@@ -654,7 +724,7 @@ if thisFW.os_ver[:3] == "8.0":
 
 update_str = json.dumps(update_dict)
 
-print update_str
+# print update_str
 # print sys.getsizeof(update_dict)
 # print sys.getsizeof(update_str)
 
@@ -669,6 +739,6 @@ key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0sr
 cmd = '&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
 update_req = requests.get(pano_prefix + cmd + key, verify=False)
 # print update_req.url
-print update_req.content
+# print update_req.content
 
 
