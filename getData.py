@@ -764,9 +764,7 @@ if thisFW.os_ver[:3] == "8.0":
 
 update_str = json.dumps(update_dict)
 
-# print update_str
-# print sys.getsizeof(update_dict)
-# print sys.getsizeof(update_str)
+
 
 
 pano_prefix = "http://10.3.4.63/api/?type=op"
