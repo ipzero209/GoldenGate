@@ -868,8 +868,6 @@ cmd = 'type=op&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlN' 
 
 
 
-
-
 update_req = requests.post(pano_prefix, headers=headerlist, data=cmd, verify=False)
 print pano_prefix
 print update_req.url
