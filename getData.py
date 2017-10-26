@@ -36,6 +36,9 @@ update_dict['status']['ports'] = {}
 update_dict['status']['environmentals'] = {}
 update_dict['status']['environmentals']['mounts'] = {}
 update_dict['status']['environmentals']['disks'] = {}
+update_dict['status']['environmentals']['fans'] = {}
+update_dict['status']['environmentals']['thermal'] = {}
+update_dict['status']['environmentals']['power'] = {}
 
 ##########################################################
 #
@@ -498,7 +501,7 @@ if (thisFW.os_ver[:3] == "8.0") and ("vm" not in thisFW.family):
     lograte_text = lograte_text[lograte_text.find(':'):]
     lograte_text = lograte_text[2:]
     lograte_int = int(lograte_text, 16)
-    update_dict['l'] = lograte_int
+    update_dict['trend']['l'] = lograte_int
 else:
     lograte_req = requests.get(prefix + xpath_alt, verify=False)
     lograte_xml = et.fromstring(lograte_req.content)
@@ -544,6 +547,7 @@ if "vm" not in thisFW.family:
         label = resp_string[:resp_string.find('{')]
         fan_slot_number = re.search(match_fan_slot, label).group(0)
         fan_number = re.search(match_fan_number, label).group(0)
+        fan_number = fan_number.replace('.','/')
         resp_string = resp_string[resp_string.find('{'):] # Need to pull the slot/fan# for the line before here.
         resp_string = resp_string.replace('\'', '"')
         resp_string = resp_string.replace(', }', ' }')
@@ -552,10 +556,14 @@ if "vm" not in thisFW.family:
         resp_string = re.sub(match_end, '", ', resp_string)
         j_line = ast.literal_eval(resp_string)
         f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
-        if f_string not in update_dict['status']:
-            update_dict['status'][f_string] = {}
-        update_dict['status'][f_string]['alrm'] = str(j_line['alarm'])
-        update_dict['status'][f_string]['rpm'] = int(j_line['avg'])
+        if f_string not in update_dict['status']['environmentals']['fans']:
+            update_dict['status']['environmentals']['fans'][f_string] = {}
+        if j_line['alarm'] == 'False':
+            update_dict['status']['environmentals']['fans'][f_string]['alrm'] = 0
+        else:
+            update_dict['status']['environmentals']['fans'][f_string]['alrm'] = 1
+        update_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
+        update_dict['status']['environmentals']['fans'][f_string]['d'] = str(j_line['desc'])
 
 
 
@@ -603,9 +611,9 @@ if "vm" not in thisFW.family:
         line = re.sub(match_end, '", ', line)
         p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
         j_line = ast.literal_eval(line)
-        if p_string not in update_dict['status']:
-            update_dict['status'][p_string] = {}
-        update_dict['status'][p_string]['alrm'] = str(j_line['alarm'])
+        if p_string not in update_dict['status']['environmentals']['power']:
+            update_dict['status']['environmentals']['power'][p_string] = {}
+        update_dict['status']['environmentals']['power'][p_string]['alrm'] = str(j_line['alarm'])
 
 
 ##########################################################
@@ -653,11 +661,11 @@ if "vm" not in thisFW.family:
             line = re.sub(match_end, '", ', line)
             j_line = ast.literal_eval(line)
             t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-            if t_string not in update_dict['status']:
-                update_dict['status'][t_string] = {}
-            update_dict['status'][t_string]['alrm'] = str(j_line['alarm'])
-            update_dict['status'][t_string]['d'] = str(j_line['desc'])
-            update_dict['status'][t_string]['tm'] = float(j_line['avg'])
+            if t_string not in update_dict['status']['environmentals']['thermal']:
+                update_dict['status']['environmentals']['thermal'][t_string] = {}
+            update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
+            update_dict['status']['environmentals']['thermal'][t_string]['d'] = str(j_line['desc'])
+            update_dict['status']['environmentals']['thermal'][t_string]['tm'] = float(j_line['avg'])
 
     else:
         for line in therm_text:
@@ -677,11 +685,11 @@ if "vm" not in thisFW.family:
             # line = re.sub(match_wonk, '"', line)
             j_line = ast.literal_eval(line)
             t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-            if t_string not in update_dict['status']:
-                update_dict['status'][t_string] = {}
-            update_dict['status'][t_string]['alrm'] = str(j_line['alarm'])
-            update_dict['status'][t_string]['d'] = str(j_line['desc'])
-            update_dict['status'][t_string]['tm'] = str(j_line['avg'])
+            if t_string not in update_dict['status']['environmentals']['thermal']:
+                update_dict['status']['environmentals']['thermal'][t_string] = {}
+            update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
+            update_dict['status']['environmentals']['thermal'][t_string]['d'] = str(j_line['desc'])
+            update_dict['status']['environmentals']['thermal'][t_string]['tm'] = str(j_line['avg'])
 
 ##########################################################
 #
@@ -841,19 +849,31 @@ if thisFW.os_ver[:3] == "8.0":
 
 update_str = json.dumps(update_dict)
 
-print update_str
 
 
-pano_prefix = "http://10.3.4.63/api/?type=op"
-# paramlist = {}
-# datalist = {}
-# paramlist['type'] = 'op'
-# paramlist['key'] = 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
+
+
+pano_prefix = "http://10.3.4.63/api/?"
+headerlist = {'Content-Type':'application/x-www-form-urlencoded'}
+
+paramlist = {'type' : 'op',
+             'key' : 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'}
+
 key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 
-cmd = '&cmd=<monitoring><external-input><device>012501000206</device><data><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
-update_req = requests.get(pano_prefix + cmd + key, verify=False)
-# print update_req.url
+cmd = 'type=op&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlN' \
+      'iY0dCR0srNERUQT09&cmd=<monitoring><external-input><device>012501000206</device><da' \
+      'ta><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
+
+# import urllib
+# cmd = urllib.quote_plus(cmd)
+
+
+
+
+update_req = requests.post(pano_prefix, headers=headerlist, data=cmd, verify=False)
+print pano_prefix
+print update_req.url
 print update_req.content
 
 
