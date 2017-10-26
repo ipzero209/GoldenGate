@@ -865,8 +865,7 @@ cmd = 'type=op&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlN' 
       'iY0dCR0srNERUQT09&cmd=<monitoring><external-input><device>012501000206</device><da' \
       'ta><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
 
-# import urllib
-# cmd = urllib.quote_plus(cmd)
+
 
 
 
