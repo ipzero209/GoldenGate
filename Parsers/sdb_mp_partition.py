@@ -11,12 +11,11 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
-prefix = "https://10.3.4.61/api/?type=op&cmd="
+prefix = "https://10.3.5.138/api/?type=op&cmd="
 
 partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
-                  "r></state></system></show>&key=LUFRPT1SdzlWUXE0R0xBQTZTejBkb" \
-                  "WJ4OVVvYWFxc0U9OC9kRkpwMWZhUTY2emNrZ3hLaTRSNFBmM0hVdDdMeGlnW" \
-                  "HE2UHJ3WXFMbz0="
+                  "r></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpne" \
+                  "mh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
 
 
@@ -31,7 +30,6 @@ part_xml = et.fromstring(part_req.content)
 part_text = part_xml.find('./result').text
 
 
-# print part_text
 
 line = part_text[part_text.find('{'):]
 line = line.replace('\'', '"')
@@ -41,6 +39,8 @@ line = re.sub(match_end, '",', line)
 line = re.sub(match_brace, '" }', line)
 line = line.replace('}"', '}')
 j_line = json.loads(line)
+for key in j_line:
+    print key
 
-print j_line
+# print j_line
 

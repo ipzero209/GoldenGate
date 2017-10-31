@@ -13,23 +13,32 @@ import pudb
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-thisFW = panFW.Device('009908000102', '10.3.5.138', '8.0.0', 'vm')
+thisFW = panFW.Device('010401000105', '10.8.49.15', '8.0.5', "3000")
 
-
+aaaa = thisFW.family
 
 # To suppress certificate warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
-prefix = "http://10.3.5.138/api/?type=op&cmd="
-pano_prefix =  "http://10.3.4.63/api/?type=op&cmd="
+api_key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+prefix = "https://{}/api/?type=op&cmd=".format(thisFW.mgmt_ip)
+pano_prefix =  "https://10.3.4.63/api/?type=op&cmd="
+
 
 update_dict = {'trend':{}}
+update_dict['status'] = {}
 update_dict['trend']['slot'] = {}
-update_dict['trend']['interface'] = {}
-update_dict['trend']['env'] = {}
-update_dict['trend']['logging-external'] = {}
-update_dict['trend']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
+update_dict['trend']['i'] = {}
+# update_dict['trend']['status'] = {}
+update_dict['status']['logging-external'] = {}
+update_dict['status']['logging-external']['external'] = {'autotag':{}, 'http':{}, 'raw':{}, 'email':{}, 'snmp':{}, 'syslog':{}}
+update_dict['status']['ports'] = {}
+update_dict['status']['environmentals'] = {}
+update_dict['status']['environmentals']['mounts'] = {}
+update_dict['status']['environmentals']['disks'] = {}
+update_dict['status']['environmentals']['fans'] = {}
+update_dict['status']['environmentals']['thermal'] = {}
+update_dict['status']['environmentals']['power'] = {}
 
 ##########################################################
 #
@@ -41,15 +50,15 @@ xpath = "<show><system><state><filter>sys.monitor.s*.mp.exports</filter></stat" 
         "e></system></show>"
 
 
-mp_cpu_req = requests.get(prefix + xpath + key, verify=False)
+mp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
 mp_cpu_xml = et.fromstring(mp_cpu_req.content)
 mp_cpu_text = mp_cpu_xml.find('./result').text
 mp_cpu_text = mp_cpu_text[mp_cpu_text.find('{'):]
 mp_cpu_text = mp_cpu_text.replace('\'', '"')
 mp_cpu_text = mp_cpu_text.replace(', }', ' }')
 mp_cpu_json = json.loads(mp_cpu_text)
-update_dict['trend']['mcp'] = int(mp_cpu_json['cpu']['1minavg'])
-#update_string = update_string + "mcp:{},".format(mp_cpu_json['cpu']['1minavg'])
+update_dict['trend']['m'] = int(mp_cpu_json['cpu']['1minavg'])
+#update_string = update_string + "m:{},".format(mp_cpu_json['cpu']['1minavg'])
 
 
 
@@ -63,7 +72,7 @@ update_dict['trend']['mcp'] = int(mp_cpu_json['cpu']['1minavg'])
 xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></" \
         "system></show>"
 
-mp_mem_req = requests.get(prefix + xpath + key, verify=False)
+mp_mem_req = requests.get(prefix + xpath + api_key, verify=False)
 mp_mem_xml = et.fromstring(mp_mem_req.content)
 mp_mem_text = mp_mem_xml.find('./result').text
 mp_mem_text = mp_mem_text[mp_mem_text.find('{'):]
@@ -73,14 +82,19 @@ mp_mem_text = mp_mem_text.replace(', }', ' }')
 match_begin = re.compile(': (?=[0-9a-fA-Z])')
 match_end = re.compile(',(?= ")')
 match_end_2 = re.compile(' (?=})')
+
+
 num_quote = re.compile('(?=, )')
 mp_mem_text = re.sub(match_begin, ': "', mp_mem_text)
 mp_mem_text = re.sub(match_end_2, '"', mp_mem_text)
 mp_mem_text = re.sub(num_quote, '"', mp_mem_text)
 mp_mem_json = json.loads(mp_mem_text)
-used_mem_hex_str = mp_mem_json["used"]
+used_mem_hex_str = mp_mem_json['used']
 used_mem_int = int(used_mem_hex_str, 16)
-update_dict['trend']['mmm'] = used_mem_int
+total_mem_hex_str = mp_mem_json['size']
+total_mem_int = int(total_mem_hex_str, 16)
+used_mem_pct = (float(used_mem_int)/float(total_mem_int)) * 100  #TODO: round if you have time
+update_dict['trend']['mm'] = used_mem_pct
 #update_string = update_string + "mmm:{},".format(used_mem_int)
 
 
@@ -95,7 +109,7 @@ xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></sta" 
 
 
 
-dp_cpu_req = requests.get(prefix + xpath + key, verify=False)
+dp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
 dp_cpu_xml = et.fromstring(dp_cpu_req.content)
 dp_cpu_text = dp_cpu_xml.find('./result').text
 dp_cpu_text = dp_cpu_text.split('\n')
@@ -106,6 +120,7 @@ match_dp_slot = re.compile('(?<=monitor\.)(s.*)(?=\.dp)')
 match_dp_dp = re.compile('(?<=\.)(dp.*)(?=\.exports)')
 
 
+d_cpu_list = []
 for line in dp_cpu_text:
     if line == "":
         break
@@ -123,7 +138,10 @@ for line in dp_cpu_text:
             update_dict['trend']['slot'][slot_num] = {}
         if dp_num not in update_dict['trend']['slot'][slot_num]:
             update_dict['trend']['slot'][slot_num][dp_num] = {}
-        update_dict['trend']['slot'][slot_num][dp_num]['dcp'] = int(j_line['cpu']['1minavg'])
+        update_dict['trend']['slot'][slot_num][dp_num]['d'] = int(j_line['cpu']['1minavg'])
+        d_cpu_list.append(int(j_line['cpu']['1minavg']))
+dcpu_avg = float(sum(d_cpu_list))/float(len(d_cpu_list))
+update_dict['trend']['d'] = dcpu_avg
 
 
 
@@ -133,7 +151,7 @@ for line in dp_cpu_text:
 #
 ##########################################################
 
-#TODO - Review all fields with David ('su, spu, etc')
+
 xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.stats.session</filter>" \
         "</state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6" \
         "TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
@@ -160,17 +178,26 @@ for line in session_text:
     line = line.replace('\'', '"')
     line = line.replace(', }', ' }')
     j_line = json.loads(line)
+    t_total = 0
+    c_total = 0
+    sa_total = 0
     if j_line:
         if session_slot_number not in update_dict['trend']['slot']:
             update_dict['trend']['slot'][session_slot_number] = {}
         if session_dp_number not in update_dict['trend']['slot'][session_slot_number]:
             update_dict['trend']['slot'][session_slot_number][session_dp_number] = {}
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['cps'] = int(j_line['cps_installed'])
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['pps'] = int(j_line['throughput_pps'])
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['su'] = int(j_line['session_util'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['c'] = int(j_line['cps_installed'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['p'] = int(j_line['throughput_pps'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['u'] = int(j_line['session_util'])
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['sa'] = int(j_line['session_active'])
-        update_dict['trend']['slot'][session_slot_number][session_dp_number]['spu'] = int(j_line['session_ssl_proxy_util'])
+        update_dict['trend']['slot'][session_slot_number][session_dp_number]['su'] = int(j_line['session_ssl_proxy_util'])
         update_dict['trend']['slot'][session_slot_number][session_dp_number]['sm'] = int(j_line['session_max'])
+        t_total = t_total + int(j_line['throughput_kbps'])
+        c_total = c_total + int(j_line['cps_installed'])
+        sa_total = sa_total + int(j_line['session_active'])
+    update_dict['trend']['t'] = t_total
+    update_dict['trend']['c'] = c_total
+    update_dict['trend']['s'] = sa_total
 
 
 
@@ -219,15 +246,15 @@ for line in pkt_text:
             update_dict['trend']['slot'][pkt_slot_number] = {}
         if pkt_dp_number not in update_dict['trend']['slot'][pkt_slot_number]:
             update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number] = {}
-    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pktb'] = int(j_line['hw-buf']['used'])
-    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pktd'] = int(j_line['pkt-descr']['used'])
+    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pb'] = int(j_line['hw-buf']['used'])
+    update_dict['trend']['slot'][pkt_slot_number][pkt_dp_number]['pd'] = int(j_line['pkt-descr']['used'])
 
 
 
 
 ##########################################################
 #
-#       Interface Info
+#       Interface Stats & Rate
 #
 ##########################################################
 
@@ -240,6 +267,12 @@ rate_xpath = "<show><system><state><filter>sys.s*.p*.rate</filter></state></sy" 
 stats_xpath = "<show><system><state><filter>net.s*.eth*.stats</filter></state>" \
               "</system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TG" \
               "M9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+err_xpath = "<show><system><state><filter>sys.s*.p*.detail</filter></state></sy" \
+            "stem></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM" \
+            "3JHUGVhRlNiY0dCR0srNERUQT09"
+
+
 
 match_begin = re.compile(': (?=[0-9a-fA-Z])')
 match_end = re.compile(',(?= ")')
@@ -275,7 +308,7 @@ if thisFW.os_ver[:3] == "8.0":
         label = line[:line.find('{')]
         rate_slot_number = re.search(match_rate_slot, label).group(0)
         rate_int_number = re.search(match_rate_interface, label).group(0)
-        int_label = "ethernet{}/{}".format(str(rate_slot_number), str(rate_int_number))
+        int_label = "{}/{}".format(str(rate_slot_number), str(rate_int_number))
         line = line[line.find('{'):]
         line = line.replace('\'', '"')
         line = line.replace(', }', ' }')
@@ -283,47 +316,163 @@ if thisFW.os_ver[:3] == "8.0":
         line = re.sub(match_end, '",', line)
         line = re.sub(match_end_2, '"', line)
         j_line = json.loads(line)
-        if int_label not in update_dict['trend']['interface']:
-            update_dict['trend']['interface'][int_label] = {}
-        update_dict['trend']['interface'][int_label]['txb'] = int(j_line['tx-bytes'])
-        update_dict['trend']['interface'][int_label]['rxb'] = int(j_line['rx-bytes'])
-        update_dict['trend']['interface'][int_label]['txpb'] = int(j_line['tx-broadcast'])
-        update_dict['trend']['interface'][int_label]['rxpb'] = int(j_line['rx-broadcast'])
-        update_dict['trend']['interface'][int_label]['txpu'] = int(j_line['tx-unicast'])
-        update_dict['trend']['interface'][int_label]['rxpu'] = int(j_line['rx-unicast'])
-        update_dict['trend']['interface'][int_label]['txpm'] = int(j_line['tx-multicast'])
-        update_dict['trend']['interface'][int_label]['rxpm'] = int(j_line['rx-multicast'])
+        if int_label not in update_dict['trend']['i']:
+            update_dict['trend']['i'][int_label] = {}
+        update_dict['trend']['i'][int_label]['t'] = int(j_line['tx-bytes'])
+        update_dict['trend']['i'][int_label]['r'] = int(j_line['rx-bytes'])
+        update_dict['trend']['i'][int_label]['tb'] = int(j_line['tx-broadcast'])
+        update_dict['trend']['i'][int_label]['rb'] = int(j_line['rx-broadcast'])
+        update_dict['trend']['i'][int_label]['tu'] = int(j_line['tx-unicast'])
+        update_dict['trend']['i'][int_label]['ru'] = int(j_line['rx-unicast'])
+        update_dict['trend']['i'][int_label]['tm'] = int(j_line['tx-multicast'])
+        update_dict['trend']['i'][int_label]['rm'] = int(j_line['rx-multicast'])
 
 
 
 
 
+#TODO: Remove stats section
+
+# stats_req = requests.get(prefix + stats_xpath, verify=False)
+# stats_xml = et.fromstring(stats_req.content)
+# stats_text = stats_xml.find('./result').text
+# if stats_text == None:
+#     print "No status info"
+# stats_text = stats_text.split('\n')
+#
+#
+# for line in stats_text:
+#     if line == "":
+#         break
+#     label = line[:line.find('{')]
+#     stats_slot_number = re.search(match_stats_slot, label).group(0)
+#     stats_int_number = re.search(match_stats_interface, label).group(0)
+#     int_label = "{}/{}".format(str(stats_slot_number), str(stats_int_number))
+#     line = line[line.find('{'):]
+#     line = line.replace('\'', '"')
+#     line = line.replace(', }', ' }')
+#     j_line = json.loads(line)
+#     if int_label not in update_dict['trend']['i']:
+#         update_dict['trend']['i'][int_label] = {}
+#     update_dict['trend']['i'][int_label]['te'] = int(j_line['tx-errs'])
+#     update_dict['trend']['i'][int_label]['re'] = int(j_line['rx-errs'])
 
 
-stats_req = requests.get(prefix + stats_xpath, verify=False)
-stats_xml = et.fromstring(stats_req.content)
-stats_text = stats_xml.find('./result').text
-if stats_text == None:
-    print "No status info"
-stats_text = stats_text.split('\n')
 
 
-for line in stats_text:
+
+##########################################################
+#
+#       Interface Errors
+#
+##########################################################
+
+
+match_begin = re.compile(': (?=[0-9a-fA-Z])')
+match_end = re.compile(',(?= ")')
+match_end_2 = re.compile(' (?=})')
+num_quote = re.compile('(?=, )')
+
+match_err_slot = re.compile('(?<=sys\.s)(.*)(?=\.p)')
+match_err_interface = re.compile('(?<=\.p)(.*)(?=\.detail)')
+
+
+
+
+err_req = requests.get(prefix + err_xpath, verify=False)
+err_req_xml = et.fromstring(err_req.content)
+err_text = err_req_xml.find('./result').text
+
+if err_text is None:
+    print "No error data"
+else: err_text = err_text.split('\n')
+
+for line in err_text:
     if line == "":
         break
     label = line[:line.find('{')]
-    stats_slot_number = re.search(match_stats_slot, label).group(0)
-    stats_int_number = re.search(match_stats_interface, label).group(0)
-    int_label = "ethernet{}/{}".format(str(stats_slot_number), str(stats_int_number))
+    err_slot_number = re.search(match_err_slot, label).group(0)
+    err_int_number = re.search(match_err_interface, label).group(0)
+    int_label = "{}/{}".format(str(err_slot_number), str(err_int_number))
     line = line[line.find('{'):]
-    line = line.replace('\'', '"')
-    line = line.replace(', }', ' }')
-    j_line = json.loads(line)
-    if int_label not in update_dict['trend']['interface']:
-        update_dict['trend']['interface'][int_label] = {}
-    update_dict['trend']['interface'][int_label]['txe'] = int(j_line['tx-errs'])
-    update_dict['trend']['interface'][int_label]['rxe'] = int(j_line['rx-errs'])
+    if len(line) == 3:
+        pass
+    else:
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = re.sub(match_begin, ': "', line)
+        line = re.sub(num_quote, '"', line)
+        line = re.sub(match_end_2, '"', line)
+        j_line = json.loads(line)
+        if "mac_transmit_err" in j_line:
+            if int_label not in update_dict['trend']['i']:
+                update_dict['trend']['i'][int_label] = {}
+            te_int = int(j_line['mac_transmit_err'])
+            update_dict['trend']['i'][int_label]['te'] = te_int
+        if "mac_rcv_err" in j_line:
+            if int_label not in update_dict['trend']['i']:
+                update_dict['trend']['i'][int_label] = {}
+            re_int = int(j_line['mac_rcv_err'])
+            update_dict['trend']['i'][int_label]['re'] = re_int
+        if "rcv_fifo_overrun" in j_line:
+            if int_label not in update_dict['trend']['i']:
+                update_dict['trend']['i'][int_label] = {}
+            rd_int = int((j_line['rcv_fifo_overrun']), 16)
+            update_dict['trend']['i'][int_label]['rd'] = rd_int
 
+
+##########################################################
+#
+#       Interface State
+#
+##########################################################
+
+
+
+
+
+state_xpath = "<show><system><state><filter>sw.dev.runtime.ifmon.port-states</f" \
+              "ilter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpne" \
+              "mh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+
+
+
+match_begin = re.compile(': (?=[0-9a-fA-Z])')
+match_end = re.compile(',(?= ")')
+#match_end_2 = re.compile(' (?=[0-9a-zA-Z])')
+match_brace = re.compile('(?<=[A-Za-z0-9]) }')
+
+
+state_req = requests.get(prefix + state_xpath, verify=False)
+state_xml = et.fromstring(state_req.content)
+state_text = state_xml.find('./result').text
+if state_text is None:
+    print "No port state data"
+else:
+    state_text = state_text.split('\n')
+
+
+line = state_text[0]
+line = line[line.find('{'):]
+line = line.replace('\'', '"')
+line = line.replace(', }', ' }')
+line = re.sub(match_begin, ':"', line)
+line = re.sub(match_end, '",', line)
+# line = re.sub(match_end_2, '"', line)
+line = re.sub(match_brace, '" }', line)
+line = line.replace('}"', '}')
+j_line = json.loads(line)
+
+
+#TODO: Release note the interface count issue.
+for key in j_line:
+    if j_line[key]['link'] == "Up":
+        p_status = 1
+    else:
+        p_status = 0
+    update_dict['status']['ports'][key] = {'pu' : p_status}
 
 
 ##########################################################
@@ -344,22 +493,23 @@ xpath_alt = "<show><system><state><filter>sw.logrcvr.runtime.write-lograte</fi" 
 
 
 # Check both version and platform to see if this is a physical device vs. VM
+skiplist = ["vm", "200", "220", "500", "800", "3000", "5000"]
 
-if (thisFW.os_ver[:3] == "8.0") and ("vm" not in thisFW.family):
+if (thisFW.os_ver[:3] == "8.0") and (thisFW.family not in skiplist):
     lograte_req = requests.get(prefix + xpath, verify=False)
     lograte_xml = et.fromstring(lograte_req.content)
     lograte_text = lograte_xml.find('./result').text
     lograte_text = lograte_text[lograte_text.find(':'):]
     lograte_text = lograte_text[2:]
     lograte_int = int(lograte_text, 16)
-    update_dict['lr'] = lograte_int
+    update_dict['trend']['l'] = lograte_int
 else:
     lograte_req = requests.get(prefix + xpath_alt, verify=False)
     lograte_xml = et.fromstring(lograte_req.content)
     lograte_text = lograte_xml.find('./result').text
     lograte_text = lograte_text[lograte_text.find(':'):]
     lograte_text = lograte_text[2:]
-    update_dict['lr'] = int(lograte_text)
+    update_dict['trend']['l'] = int(lograte_text)
 
 
 
@@ -372,7 +522,7 @@ else:
 
 
 
-if "vm" not in thisFW.family:
+if "vm" not in thisFW.family and "220" not in thisFW.family:
     xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
             "m></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3J" \
             "HUGVhRlNiY0dCR0srNERUQT09"
@@ -388,8 +538,6 @@ if "vm" not in thisFW.family:
     rate_text = rate_xml.find('./result').text
     # print rate_text
 
-
-
     rate_text = rate_text.split('\n')
 
     for resp_string in rate_text:
@@ -398,18 +546,29 @@ if "vm" not in thisFW.family:
         label = resp_string[:resp_string.find('{')]
         fan_slot_number = re.search(match_fan_slot, label).group(0)
         fan_number = re.search(match_fan_number, label).group(0)
+        fan_number = fan_number.replace('.','/')
         resp_string = resp_string[resp_string.find('{'):] # Need to pull the slot/fan# for the line before here.
         resp_string = resp_string.replace('\'', '"')
         resp_string = resp_string.replace(', }', ' }')
         resp_string = resp_string.replace(', ]', ' ]')
         resp_string = re.sub(match_begin, ': "', resp_string)
         resp_string = re.sub(match_end, '", ', resp_string)
+        if thisFW.family == "500":
+            match_end_2 = re.compile(' (?=})')
+            resp_string = re.sub(match_end_2, '"', resp_string)
         j_line = ast.literal_eval(resp_string)
         f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
-        if f_string not in update_dict['trend']['env']:
-            update_dict['trend']['env'][f_string] = {}
-        update_dict['trend']['env'][f_string]['alrm'] = str(j_line['alarm'])
-        update_dict['trend']['env'][f_string]['rpm'] = int(j_line['avg'])
+        if f_string not in update_dict['status']['environmentals']['fans']:
+            update_dict['status']['environmentals']['fans'][f_string] = {}
+        if j_line['alarm'] == 'False':
+            update_dict['status']['environmentals']['fans'][f_string]['alrm'] = 0
+        else:
+            update_dict['status']['environmentals']['fans'][f_string]['alrm'] = 1
+        if thisFW.family == "500":
+            update_dict['status']['environmentals']['fans'][f_string]['rpm'] = 0
+        else:
+            update_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
+        update_dict['status']['environmentals']['fans'][f_string]['de'] = str(j_line['desc'])
 
 
 
@@ -419,47 +578,101 @@ if "vm" not in thisFW.family:
 #       Environmentals - Power
 #
 ##########################################################
-
-
-if "vm" not in thisFW.family:
+# pudb.set_trace()
+skiplist = ["200", "vm", "500", "800", "3000"]
+if thisFW.family in skiplist:
+    pass
+else:
     xpath = "<show><system><state><filter>env.s*.power.*</filter></state></sys" \
             "tem></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM" \
             "3JHUGVhRlNiY0dCR0srNERUQT09"
-
-    # Slot/Rail match criteria
-    pwr_slot_match = re.compile('(?<=env\.s)(.*)(?=\.power)')
-    pwr_rail_match = re.compile('(?<=power\.)(.*)(?=:)')
-
-    # Match criteria for JSON formatting
+    ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
+               "/state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh" \
+               "0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
-    match_end_2 = re.compile(' (?=})')
+    match_brace = re.compile('(?= })')
 
+    match_power_slot = re.compile('(?<=env\.s)(.*)(?=\.power-supply)')
+    match_power_number = re.compile('(?<=supply\.)(.*)(?=:)')
 
-    pwr_req = requests.get(prefix + xpath, verify=False)
-    pwr_xml = et.fromstring(pwr_req.content)
-    pwr_text = pwr_xml.find('./result').text
-    if pwr_text is None:
-        print "No power data"
+    ps_req = requests.get(prefix + ps_xpath, verify=False)
+    ps_text = ps_req.content
+    ps_text = ''.join([i if ord(i) < 128 else '0' for i in ps_text])
+    ps_xml = et.fromstring(ps_text)
+    ps_text = ps_xml.find('./result').text
+    if ps_text is None:
+        print "No power supply data"
     else:
-        pwr_text = pwr_text.split('\n')
+        ps_text = ps_text.split('\n')
 
-    for line in pwr_text:
+    for line in ps_text:
         if line == "":
             break
         label = line[:line.find('{')]
-        pwr_slot_number = re.search(pwr_slot_match, label).group(0)
-        pwr_rail_number = re.search(pwr_rail_match, label).group(0)
+        power_slot = re.search(match_power_slot, label).group(0)
+        power_number = re.search(match_power_number, label).group(0)
+        p_string = "power{}/{}".format(str(power_slot), str(power_number))
         line = line[line.find('{'):]
         line = line.replace('\'', '"')
         line = line.replace(', }', ' }')
-        line = re.sub(match_begin, ': "', line)
-        line = re.sub(match_end, '", ', line)
-        p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
-        j_line = ast.literal_eval(line)
-        if p_string not in update_dict['trend']['env']:
-            update_dict['trend']['env'][p_string] = {}
-        update_dict['trend']['env'][p_string]['alrm'] = str(j_line['alarm'])
+        line = re.sub(match_begin, ':"', line)
+        line = re.sub(match_end, '",', line)
+        line = re.sub(match_brace, '"', line)
+        line = line.replace(': ",', ': "",')
+        line = line.replace(': " ', ': "" ')
+        j_line = json.loads(line)
+        if p_string not in update_dict['status']['environmentals']['power']:
+            update_dict['status']['environmentals']['power'][p_string] = {}
+        if str(j_line['alarm']) == "False":
+            update_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
+        else:
+            update_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
+        if str(j_line['present']) == "False":
+            update_dict['status']['environmentals']['power'][p_string]['ins'] = 0
+        else:
+            update_dict['status']['environmentals']['power'][p_string]['ins'] = 1
+        update_dict['status']['environmentals']['power'][p_string]['de'] = str(j_line['desc'])
+
+    # # Slot/Rail match criteria
+    # pwr_slot_match = re.compile('(?<=env\.s)(.*)(?=\.power)')
+    # pwr_rail_match = re.compile('(?<=power\.)(.*)(?=:)')
+    #
+    # # Match criteria for JSON formatting
+    # match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    # match_end = re.compile(',(?= ")')
+    # match_end_2 = re.compile(' (?=})')
+    #
+    #
+    # pwr_req = requests.get(prefix + xpath, verify=False)
+    # pwr_xml = et.fromstring(pwr_req.content)
+    # pwr_text = pwr_xml.find('./result').text
+    # if pwr_text is None:
+    #     print "No power data"
+    # else:
+    #     pwr_text = pwr_text.split('\n')
+    #
+    # for line in pwr_text:
+    #     if line == "":
+    #         break
+    #     label = line[:line.find('{')]
+    #     pwr_slot_number = re.search(pwr_slot_match, label).group(0)
+    #     pwr_rail_number = re.search(pwr_rail_match, label).group(0)
+    #     line = line[line.find('{'):]
+    #     line = line.replace('\'', '"')
+    #     line = line.replace(', }', ' }')
+    #     line = re.sub(match_begin, ': "', line)
+    #     line = re.sub(match_end, '", ', line)
+    #     p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
+    #     j_line = ast.literal_eval(line)
+    #     if p_string not in update_dict['status']['environmentals']['power']:
+    #         update_dict['status']['environmentals']['power'][p_string] = {}
+    #     if str(j_line['alarm']) == "False":
+    #         update_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
+    #     else:
+    #         update_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
+    #     update_dict['status']['environmentals']['power'][p_string]['d'] = str(j_line['desc'])
+
 
 
 ##########################################################
@@ -480,9 +693,9 @@ if "vm" not in thisFW.family:
     match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
 
     # Match criteria for JSON formatting
-    match_begin = re.compile(': (?=[A-Z0-9\-])')
+    match_begin = re.compile(': (?=[A-Z0-9\-\[])')
     match_end = re.compile(',(?= ")')
-
+    # match_wonk = re.compile('[0-9]\](?=,)')
 
     therm_req = requests.get(prefix + xpath, verify=False)
 
@@ -492,26 +705,170 @@ if "vm" not in thisFW.family:
         print "No thermal data"
     else:
         therm_text = therm_text.split('\n')
+    if thisFW.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
+        for line in therm_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            therm_slot_number = re.search(match_therm_slot, label).group(0)
+            therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = line.replace(', ]', ' ]')
+            line = re.sub(match_begin, ': "', line)
+            line = re.sub(match_end, '", ', line)
+            line = line.replace('"[', '[')
+            j_line = ast.literal_eval(line)
+            t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+            if t_string not in update_dict['status']['environmentals']['thermal']:
+                update_dict['status']['environmentals']['thermal'][t_string] = {}
+            if str(j_line['alarm']) == 'False':
+                update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 0
+            else:
+                update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 1
+            update_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
+            update_dict['status']['environmentals']['thermal'][t_string]['tm'] = float(j_line['avg'])
 
-    for line in therm_text:
+    else:
+        for line in therm_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            therm_slot_number = re.search(match_therm_slot, label).group(0)
+            therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = line.replace(', ]', ' ]')
+            line = re.sub(match_begin, ': "', line)
+            line = re.sub(match_end, '", ', line)
+            # line = line.replace(']"', ']')
+            line = re.sub(match_end_2, '" ', line)
+            # line = re.sub(match_wonk, '"', line)
+            j_line = ast.literal_eval(line)
+            t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+            if t_string not in update_dict['status']['environmentals']['thermal']:
+                update_dict['status']['environmentals']['thermal'][t_string] = {}
+            update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
+            update_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
+            update_dict['status']['environmentals']['thermal'][t_string]['tm'] = str(j_line['avg'])
+
+##########################################################
+#
+#       Environmentals - Disk Partitions
+#
+##########################################################
+
+
+
+
+
+partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
+                  "r></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpne" \
+                  "mh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+match_begin = re.compile(': (?=[0-9a-fA-Z])')
+match_end = re.compile(',(?= ")')
+match_end_2 = re.compile(' (?=})')
+match_brace = re.compile('(?<=[A-Za-z0-9]) }')
+
+
+part_req = requests.get(prefix + partition_xpath, verify=False)
+part_xml = et.fromstring(part_req.content)
+part_text = part_xml.find('./result').text
+
+
+
+line = part_text[part_text.find('{'):]
+line = line.replace('\'', '"')
+line = line.replace(', }', ' }')
+line = re.sub(match_begin, ':"', line)
+line = re.sub(match_end, '",', line)
+line = re.sub(match_brace, '" }', line)
+line = line.replace('}"', '}')
+j_line = json.loads(line)
+for key in j_line:
+    if key not in update_dict['status']['environmentals']['mounts']:
+        update_dict['status']['environmentals']['mounts'][key] = {}
+    size = int(j_line[key]['size'], 16)
+    used = int(j_line[key]['used'], 16)
+    avail = size - used
+    pct_used = round((float(used)/float(size))*100, 0)
+    update_dict['status']['environmentals']['mounts'][key]['s'] = size
+    update_dict['status']['environmentals']['mounts'][key]['u'] = used
+    update_dict['status']['environmentals']['mounts'][key]['a'] = avail
+    update_dict['status']['environmentals']['mounts'][key]['put'] = pct_used
+
+
+
+
+
+
+
+##########################################################
+#
+#       Environmentals - Raid Status
+#
+##########################################################
+
+# TODO: updatedict['status']['environmentals']['disk']['fake1']['fake2']['0']...
+
+# sys.raid.s*.ld*.drives = for 0 and 1, include name ('n'), size('z') and status('s')
+# status
+# active sync = '1'
+
+raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
+             "te></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6T" \
+             "GM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
+
+if thisFW.family == ("5200" or "7000"):
+
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
+
+    match_raid_slot = re.compile('(?<=raid\.s)(.*)(?=\.ld)')
+    match_raid_ld = re.compile('(?<=\.ld)(.*)(?=\.drives)')
+
+    raid_req = requests.get(prefix + raid_xpath, verify=False)
+    raid_xml = et.fromstring(raid_req.content)
+    raid_text = raid_xml.find('./result').text
+
+
+    if raid_text is None:
+        print "No RAID data"
+    else:
+        raid_text = raid_text.split('\n')
+
+    for line in raid_text:
         if line == "":
             break
         label = line[:line.find('{')]
-        therm_slot_number = re.search(match_therm_slot, label).group(0)
-        therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+        raid_slot_number = re.search(match_raid_slot, label).group(0)
+        raid_slot_number = "s{}".format(raid_slot_number)
+        raid_ld_number = re.search(match_raid_ld, label).group(0)
+        raid_ld_number = "l{}".format(raid_ld_number)
         line = line[line.find('{'):]
         line = line.replace('\'', '"')
         line = line.replace(', }', ' }')
-        line = line.replace(', ]', ' ]')
-        line = re.sub(match_begin, ': "', line)
-        line = re.sub(match_end, '", ', line)
-        j_line = ast.literal_eval(line)
-        t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-        if t_string not in update_dict['trend']['env']:
-            update_dict['trend']['env'][t_string] = {}
-        update_dict['trend']['env'][t_string]['alrm'] = str(j_line['alarm'])
-        update_dict['trend']['env'][t_string]['d'] = str(j_line['desc'])
-        update_dict['trend']['env'][t_string]['tm'] = float(j_line['avg'])
+        line = re.sub(match_begin, ':"', line)
+        line = re.sub(match_end, '",', line)
+        line = re.sub(match_end_2, '"', line)
+        line = line.replace('}"', '} ')
+        j_line = json.loads(line)
+        if raid_slot_number not in update_dict['status']['environmentals']['disks']:
+            update_dict['status']['environmentals']['disks'][raid_slot_number] = {}
+        if raid_ld_number not in update_dict['status']['environmentals']['disks'][raid_slot_number]:
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number] = {}
+        for n in range(0, 2):
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n] = {}
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['n'] = str(j_line[str(n)]['name'])
+            update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['z'] = str(j_line[str(n)]['size'])
+            if j_line[str(n)]['status'] == 'active sync':
+                update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 1
+            else:
+                update_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 0
 
 
 
@@ -547,29 +904,38 @@ if thisFW.os_ver[:3] == "8.0":
     for node in node_list:
         for m_key in node[1]:
             xpath = "<show><system><state><filter>{}</filter></state></system></show>".format(node[1][m_key])
-            node_req = requests.get(prefix + xpath + key, verify=False)
+            node_req = requests.get(prefix + xpath + api_key, verify=False)
             node_xml = et.fromstring(node_req.content)
             node_text = node_xml.find('./result').text
             node_text = node_text[node_text.find(': ') + 2:]
-            update_dict['trend']['logging-external']['external'][node[0]][m_key] = int(node_text)
+            update_dict['status']['logging-external']['external'][node[0]][m_key] = int(node_text)
 
 update_str = json.dumps(update_dict)
 
 # print update_str
-# print sys.getsizeof(update_dict)
-# print sys.getsizeof(update_str)
+# print "\n\n\n\n\n"
 
 
 pano_prefix = "http://10.3.4.63/api/?"
-# paramlist = {}
-# datalist = {}
-# paramlist['type'] = 'op'
-# paramlist['key'] = 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
+headerlist = {'Content-Type':'application/x-www-form-urlencoded'}
+
+paramlist = {'type' : 'op',
+             'key' : 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'}
+
 key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 
-cmd = '&type=op&cmd=<monitoring><external-input><device>007200003295</device><data><![CDATA[{}]]</data></external-input></monitoring>'.format(update_str)
-update_req = requests.get(pano_prefix + cmd + key, verify=False)
-print update_req.url
+cmd = 'type=op&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlN' \
+      'iY0dCR0srNERUQT09&cmd=<monitoring><external-input><device>{}</device><da' \
+      'ta><![CDATA[{}]]></data></external-input></monitoring>'.format(thisFW.ser_num, update_str)
+
+
+
+
+update_req = requests.post(pano_prefix, headers=headerlist, data=cmd, verify=False)
+# print update_req.url
+# print "\n\n\n\n"
+
+
 print update_req.content
 
 

@@ -13,13 +13,8 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # Works for:
 #
-# 7000
-# 800
-# 220
-# 500
-# 3000
-# 5000
-
+# 200
+# 5200
 
 key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
@@ -37,7 +32,8 @@ match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
 # Match criteria for JSON formatting
 match_begin = re.compile(': (?=[A-Z0-9\-])')
 match_end = re.compile(',(?= ")')
-
+match_end_2 = re.compile(' (?=})')
+match_wonk = re.compile('[0-9]\](?=,)')
 
 therm_req = requests.get(prefix + xpath, verify=False)
 therm_xml = et.fromstring(therm_req.content)
@@ -59,6 +55,9 @@ for line in therm_text:
     line = line.replace(', ]', ' ]')
     line = re.sub(match_begin, ': "', line)
     line = re.sub(match_end, '", ', line)
-    print line
-    # line_dict = ast.literal_eval(line)
-    # print line_dict
+    line = line.replace(']"', ']')
+    line = re.sub(match_end_2, '" ', line)
+    line = re.sub(match_wonk, '"', line)
+    # print line
+    line_dict = ast.literal_eval(line)
+    print line_dict

@@ -5,18 +5,16 @@ import xml.etree.ElementTree as et
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import json
 import re
-import pudb
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
-prefix = "https://10.3.4.61/api/?type=op&cmd="
+prefix = "https://10.3.5.138/api/?type=op&cmd="
 
 state_xpath = "<show><system><state><filter>sw.dev.runtime.ifmon.port-states</f" \
-              "ilter></state></system></show>&key=LUFRPT1SdzlWUXE0R0xBQTZTejBkb" \
-              "WJ4OVVvYWFxc0U9OC9kRkpwMWZhUTY2emNrZ3hLaTRSNFBmM0hVdDdMeGlnWHE2U" \
-              "HJ3WXFMbz0="
+              "ilter></state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpne" \
+              "mh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
 
 
 
@@ -35,6 +33,7 @@ if state_text is None:
 else:
     state_text = state_text.split('\n')
 
+
 line = state_text[0]
 line = line[line.find('{'):]
 line = line.replace('\'', '"')
@@ -44,10 +43,15 @@ line = re.sub(match_end, '",', line)
 # line = re.sub(match_end_2, '"', line)
 line = re.sub(match_brace, '" }', line)
 line = line.replace('}"', '}')
-outfile.write(line)
 j_line = json.loads(line)
 
-print j_line
+for key in j_line:
+    print str(key) + "\t" + str(j_line[key]['type'])
+    # if j_line[key]['link'] == "Up":
+    #     p_status = 1
+    # else:
+    #     p_status = 0
+
 
 
 
