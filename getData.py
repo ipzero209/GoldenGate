@@ -8,20 +8,20 @@ import panFW
 import ast
 # -------- Remove below here --------
 import sys
-# import pudb
+import pudb
 # -------- Remove above here --------
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-thisFW = panFW.Device('009908000102', '10.8.49.29', '8.0.5', '5200')
+thisFW = panFW.Device('010401000105', '10.8.49.15', '8.0.5', "3000")
 
-
+aaaa = thisFW.family
 
 # To suppress certificate warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 api_key = "&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
-prefix = "https://10.8.49.29/api/?type=op&cmd="
+prefix = "https://{}/api/?type=op&cmd=".format(thisFW.mgmt_ip)
 pano_prefix =  "https://10.3.4.63/api/?type=op&cmd="
 
 
@@ -120,6 +120,7 @@ match_dp_slot = re.compile('(?<=monitor\.)(s.*)(?=\.dp)')
 match_dp_dp = re.compile('(?<=\.)(dp.*)(?=\.exports)')
 
 
+d_cpu_list = []
 for line in dp_cpu_text:
     if line == "":
         break
@@ -132,7 +133,6 @@ for line in dp_cpu_text:
     line = line.replace('\'', '"')
     line = line.replace(', }', ' }')
     j_line = json.loads(line)
-    d_cpu_list = []
     if j_line:
         if slot_num not in update_dict['trend']['slot']:
             update_dict['trend']['slot'][slot_num] = {}
@@ -418,7 +418,7 @@ for line in err_text:
         if "rcv_fifo_overrun" in j_line:
             if int_label not in update_dict['trend']['i']:
                 update_dict['trend']['i'][int_label] = {}
-            rd_int = int(j_line['rcv_fifo_overrun'])
+            rd_int = int((j_line['rcv_fifo_overrun']), 16)
             update_dict['trend']['i'][int_label]['rd'] = rd_int
 
 
@@ -493,8 +493,9 @@ xpath_alt = "<show><system><state><filter>sw.logrcvr.runtime.write-lograte</fi" 
 
 
 # Check both version and platform to see if this is a physical device vs. VM
+skiplist = ["vm", "200", "220", "500", "800", "3000", "5000"]
 
-if (thisFW.os_ver[:3] == "8.0") and ("vm" not in thisFW.family):
+if (thisFW.os_ver[:3] == "8.0") and (thisFW.family not in skiplist):
     lograte_req = requests.get(prefix + xpath, verify=False)
     lograte_xml = et.fromstring(lograte_req.content)
     lograte_text = lograte_xml.find('./result').text
@@ -521,7 +522,7 @@ else:
 
 
 
-if "vm" not in thisFW.family:
+if "vm" not in thisFW.family and "220" not in thisFW.family:
     xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
             "m></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3J" \
             "HUGVhRlNiY0dCR0srNERUQT09"
@@ -536,8 +537,6 @@ if "vm" not in thisFW.family:
     rate_xml = et.fromstring(rate_req.content)
     rate_text = rate_xml.find('./result').text
     # print rate_text
-
-
 
     rate_text = rate_text.split('\n')
 
@@ -554,6 +553,9 @@ if "vm" not in thisFW.family:
         resp_string = resp_string.replace(', ]', ' ]')
         resp_string = re.sub(match_begin, ': "', resp_string)
         resp_string = re.sub(match_end, '", ', resp_string)
+        if thisFW.family == "500":
+            match_end_2 = re.compile(' (?=})')
+            resp_string = re.sub(match_end_2, '"', resp_string)
         j_line = ast.literal_eval(resp_string)
         f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
         if f_string not in update_dict['status']['environmentals']['fans']:
@@ -562,8 +564,11 @@ if "vm" not in thisFW.family:
             update_dict['status']['environmentals']['fans'][f_string]['alrm'] = 0
         else:
             update_dict['status']['environmentals']['fans'][f_string]['alrm'] = 1
-        update_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
-        update_dict['status']['environmentals']['fans'][f_string]['d'] = str(j_line['desc'])
+        if thisFW.family == "500":
+            update_dict['status']['environmentals']['fans'][f_string]['rpm'] = 0
+        else:
+            update_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
+        update_dict['status']['environmentals']['fans'][f_string]['de'] = str(j_line['desc'])
 
 
 
@@ -573,47 +578,101 @@ if "vm" not in thisFW.family:
 #       Environmentals - Power
 #
 ##########################################################
-
-
-if "vm" not in thisFW.family:
+# pudb.set_trace()
+skiplist = ["200", "vm", "500", "800", "3000"]
+if thisFW.family in skiplist:
+    pass
+else:
     xpath = "<show><system><state><filter>env.s*.power.*</filter></state></sys" \
             "tem></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM" \
             "3JHUGVhRlNiY0dCR0srNERUQT09"
-
-    # Slot/Rail match criteria
-    pwr_slot_match = re.compile('(?<=env\.s)(.*)(?=\.power)')
-    pwr_rail_match = re.compile('(?<=power\.)(.*)(?=:)')
-
-    # Match criteria for JSON formatting
+    ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
+               "/state></system></show>&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh" \
+               "0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09"
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
-    match_end_2 = re.compile(' (?=})')
+    match_brace = re.compile('(?= })')
 
+    match_power_slot = re.compile('(?<=env\.s)(.*)(?=\.power-supply)')
+    match_power_number = re.compile('(?<=supply\.)(.*)(?=:)')
 
-    pwr_req = requests.get(prefix + xpath, verify=False)
-    pwr_xml = et.fromstring(pwr_req.content)
-    pwr_text = pwr_xml.find('./result').text
-    if pwr_text is None:
-        print "No power data"
+    ps_req = requests.get(prefix + ps_xpath, verify=False)
+    ps_text = ps_req.content
+    ps_text = ''.join([i if ord(i) < 128 else '0' for i in ps_text])
+    ps_xml = et.fromstring(ps_text)
+    ps_text = ps_xml.find('./result').text
+    if ps_text is None:
+        print "No power supply data"
     else:
-        pwr_text = pwr_text.split('\n')
+        ps_text = ps_text.split('\n')
 
-    for line in pwr_text:
+    for line in ps_text:
         if line == "":
             break
         label = line[:line.find('{')]
-        pwr_slot_number = re.search(pwr_slot_match, label).group(0)
-        pwr_rail_number = re.search(pwr_rail_match, label).group(0)
+        power_slot = re.search(match_power_slot, label).group(0)
+        power_number = re.search(match_power_number, label).group(0)
+        p_string = "power{}/{}".format(str(power_slot), str(power_number))
         line = line[line.find('{'):]
         line = line.replace('\'', '"')
         line = line.replace(', }', ' }')
-        line = re.sub(match_begin, ': "', line)
-        line = re.sub(match_end, '", ', line)
-        p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
-        j_line = ast.literal_eval(line)
+        line = re.sub(match_begin, ':"', line)
+        line = re.sub(match_end, '",', line)
+        line = re.sub(match_brace, '"', line)
+        line = line.replace(': ",', ': "",')
+        line = line.replace(': " ', ': "" ')
+        j_line = json.loads(line)
         if p_string not in update_dict['status']['environmentals']['power']:
             update_dict['status']['environmentals']['power'][p_string] = {}
-        update_dict['status']['environmentals']['power'][p_string]['alrm'] = str(j_line['alarm'])
+        if str(j_line['alarm']) == "False":
+            update_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
+        else:
+            update_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
+        if str(j_line['present']) == "False":
+            update_dict['status']['environmentals']['power'][p_string]['ins'] = 0
+        else:
+            update_dict['status']['environmentals']['power'][p_string]['ins'] = 1
+        update_dict['status']['environmentals']['power'][p_string]['de'] = str(j_line['desc'])
+
+    # # Slot/Rail match criteria
+    # pwr_slot_match = re.compile('(?<=env\.s)(.*)(?=\.power)')
+    # pwr_rail_match = re.compile('(?<=power\.)(.*)(?=:)')
+    #
+    # # Match criteria for JSON formatting
+    # match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    # match_end = re.compile(',(?= ")')
+    # match_end_2 = re.compile(' (?=})')
+    #
+    #
+    # pwr_req = requests.get(prefix + xpath, verify=False)
+    # pwr_xml = et.fromstring(pwr_req.content)
+    # pwr_text = pwr_xml.find('./result').text
+    # if pwr_text is None:
+    #     print "No power data"
+    # else:
+    #     pwr_text = pwr_text.split('\n')
+    #
+    # for line in pwr_text:
+    #     if line == "":
+    #         break
+    #     label = line[:line.find('{')]
+    #     pwr_slot_number = re.search(pwr_slot_match, label).group(0)
+    #     pwr_rail_number = re.search(pwr_rail_match, label).group(0)
+    #     line = line[line.find('{'):]
+    #     line = line.replace('\'', '"')
+    #     line = line.replace(', }', ' }')
+    #     line = re.sub(match_begin, ': "', line)
+    #     line = re.sub(match_end, '", ', line)
+    #     p_string = "power{}/{}".format(str(pwr_slot_number), str(pwr_rail_number))
+    #     j_line = ast.literal_eval(line)
+    #     if p_string not in update_dict['status']['environmentals']['power']:
+    #         update_dict['status']['environmentals']['power'][p_string] = {}
+    #     if str(j_line['alarm']) == "False":
+    #         update_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
+    #     else:
+    #         update_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
+    #     update_dict['status']['environmentals']['power'][p_string]['d'] = str(j_line['desc'])
+
 
 
 ##########################################################
@@ -659,12 +718,16 @@ if "vm" not in thisFW.family:
             line = line.replace(', ]', ' ]')
             line = re.sub(match_begin, ': "', line)
             line = re.sub(match_end, '", ', line)
+            line = line.replace('"[', '[')
             j_line = ast.literal_eval(line)
             t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
             if t_string not in update_dict['status']['environmentals']['thermal']:
                 update_dict['status']['environmentals']['thermal'][t_string] = {}
-            update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
-            update_dict['status']['environmentals']['thermal'][t_string]['d'] = str(j_line['desc'])
+            if str(j_line['alarm']) == 'False':
+                update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 0
+            else:
+                update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 1
+            update_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
             update_dict['status']['environmentals']['thermal'][t_string]['tm'] = float(j_line['avg'])
 
     else:
@@ -688,7 +751,7 @@ if "vm" not in thisFW.family:
             if t_string not in update_dict['status']['environmentals']['thermal']:
                 update_dict['status']['environmentals']['thermal'][t_string] = {}
             update_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
-            update_dict['status']['environmentals']['thermal'][t_string]['d'] = str(j_line['desc'])
+            update_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
             update_dict['status']['environmentals']['thermal'][t_string]['tm'] = str(j_line['avg'])
 
 ##########################################################
@@ -849,8 +912,8 @@ if thisFW.os_ver[:3] == "8.0":
 
 update_str = json.dumps(update_dict)
 
-
-
+# print update_str
+# print "\n\n\n\n\n"
 
 
 pano_prefix = "http://10.3.4.63/api/?"
@@ -862,15 +925,17 @@ paramlist = {'type' : 'op',
 key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 
 cmd = 'type=op&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlN' \
-      'iY0dCR0srNERUQT09&cmd=<monitoring><external-input><device>012501000206</device><da' \
-      'ta><![CDATA[{}]]></data></external-input></monitoring>'.format(update_str)
+      'iY0dCR0srNERUQT09&cmd=<monitoring><external-input><device>{}</device><da' \
+      'ta><![CDATA[{}]]></data></external-input></monitoring>'.format(thisFW.ser_num, update_str)
 
 
 
 
 update_req = requests.post(pano_prefix, headers=headerlist, data=cmd, verify=False)
-print pano_prefix
-print update_req.url
+# print update_req.url
+# print "\n\n\n\n"
+
+
 print update_req.content
 
 
