@@ -424,6 +424,310 @@ def logRate(fw, u_dict, api_key):
     return u_dict
 
 
+##########################################################
+#
+#       Environmentals - Fans
+#
+##########################################################
+
+# TODO: Extract the model check to main function
+
+def envFans(fw, u_dict, api_key):
+    if "vm" not in thisFW.family and "220" not in thisFW.family:
+        xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
+                "m></show>"
+        prefix = "https://{}/api/?".format(fw.mgmt_ip)
+
+        match_end = re.compile(',(?= ")')
+        match_begin = re.compile(': (?=[0-9a-fA-Z])')
+        match_fan_slot = re.compile('(?<=env\.s)(.*)(?=\.fan)')
+        match_fan_number = re.compile('(?<=fan\.)(.*)(?=:)')
+
+        rate_req = requests.get(prefix + xpath, verify=False)
+        rate_xml = et.fromstring(rate_req.content)
+        rate_text = rate_xml.find('./result').text
+        rate_text = rate_text.split('\n')
+
+        for resp_string in rate_text:
+            if resp_string == "":
+                break
+            label = resp_string[:resp_string.find('{')]
+            fan_slot_number = re.search(match_fan_slot, label).group(0)
+            fan_number = re.search(match_fan_number, label).group(0)
+            fan_number = fan_number.replace('.', '/')
+            resp_string = resp_string[resp_string.find('{'):]
+            resp_string = resp_string.replace('\'', '"')
+            resp_string = resp_string.replace(', }', ' }')
+            resp_string = resp_string.replace(', ]', ' ]')
+            resp_string = re.sub(match_begin, ': "', resp_string)
+            resp_string = re.sub(match_end, '", ', resp_string)
+            if thisFW.family == "500":
+                match_end_2 = re.compile(' (?=})')
+                resp_string = re.sub(match_end_2, '"', resp_string)
+            j_line = ast.literal_eval(resp_string)
+            f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
+            if f_string not in u_dict['status']['environmentals']['fans']:
+                u_dict['status']['environmentals']['fans'][f_string] = {}
+            if j_line['alarm'] == 'False':
+                u_dict['status']['environmentals']['fans'][f_string]['alrm'] = 0
+            else:
+                u_dict['status']['environmentals']['fans'][f_string]['alrm'] = 1
+            if thisFW.family == "500":
+                u_dict['status']['environmentals']['fans'][f_string]['rpm'] = 0
+            else:
+                u_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
+            u_dict['status']['environmentals']['fans'][f_string]['de'] = str(j_line['desc'])
+    return u_dict
+
+
+##########################################################
+#
+#       Environmentals - Power
+#
+##########################################################
+
+
+def envPower(fw, u_dict, api_key):
+    skiplist = ["200", "vm", "500", "800", "3000"]
+    if thisFW.family in skiplist:
+        pass
+    else:
+        ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
+                   "/state></system></show>"
+        prefix = "https://{}/api/?".format(fw.mgmt_ip)
+        match_begin = re.compile(': (?=[0-9a-fA-Z])')
+        match_end = re.compile(',(?= ")')
+        match_brace = re.compile('(?= })')
+
+        match_power_slot = re.compile('(?<=env\.s)(.*)(?=\.power-supply)')
+        match_power_number = re.compile('(?<=supply\.)(.*)(?=:)')
+
+        ps_req = requests.get(prefix + ps_xpath + api_key, verify=False)
+        ps_text = ps_req.content
+        ps_text = ''.join([i if ord(i) < 128 else '0' for i in ps_text])
+        ps_xml = et.fromstring(ps_text)
+        ps_text = ps_xml.find('./result').text
+        if ps_text is None:
+            print "No power supply data"
+        else:
+            ps_text = ps_text.split('\n')
+
+        for line in ps_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            power_slot = re.search(match_power_slot, label).group(0)
+            power_number = re.search(match_power_number, label).group(0)
+            p_string = "power{}/{}".format(str(power_slot), str(power_number))
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = re.sub(match_begin, ':"', line)
+            line = re.sub(match_end, '",', line)
+            line = re.sub(match_brace, '"', line)
+            line = line.replace(': ",', ': "",')
+            line = line.replace(': " ', ': "" ')
+            j_line = json.loads(line)
+            if p_string not in u_dict['status']['environmentals']['power']:
+                u_dict['status']['environmentals']['power'][p_string] = {}
+            if str(j_line['alarm']) == "False":
+                u_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
+            else:
+                u_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
+            if str(j_line['present']) == "False":
+                u_dict['status']['environmentals']['power'][p_string]['ins'] = 0
+            else:
+                u_dict['status']['environmentals']['power'][p_string]['ins'] = 1
+            u_dict['status']['environmentals']['power'][p_string]['de'] = str(j_line['desc'])
+    return u_dict
+
+##########################################################
+#
+#       Environmentals - Thermal
+#
+##########################################################
+
+
+def envThermal(fw, u_dict, api_key):
+    if "vm" not in thisFW.family:
+        xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
+                "m></show>"
+        prefix = "https://{}/api/?".format(fw.mgmt_ip)
+
+        # Slot/Sensor match criteria
+        match_therm_slot = re.compile('(?<=env\.s)(.*)(?=\.therm)')
+        match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
+
+        # Match criteria for JSON formatting
+        match_begin = re.compile(': (?=[A-Z0-9\-\[])')
+        match_end = re.compile(',(?= ")')
+        # match_wonk = re.compile('[0-9]\](?=,)')
+
+        therm_req = requests.get(prefix + xpath + api_key, verify=False)
+
+        therm_xml = et.fromstring(therm_req.content)
+        therm_text = therm_xml.find('./result').text
+        if therm_text == None:
+            print "No thermal data"
+        else:
+            therm_text = therm_text.split('\n')
+        if thisFW.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
+            for line in therm_text:
+                if line == "":
+                    break
+                label = line[:line.find('{')]
+                therm_slot_number = re.search(match_therm_slot, label).group(0)
+                therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+                line = line[line.find('{'):]
+                line = line.replace('\'', '"')
+                line = line.replace(', }', ' }')
+                line = line.replace(', ]', ' ]')
+                line = re.sub(match_begin, ': "', line)
+                line = re.sub(match_end, '", ', line)
+                line = line.replace('"[', '[')
+                j_line = ast.literal_eval(line)
+                t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+                if t_string not in u_dict['status']['environmentals']['thermal']:
+                    u_dict['status']['environmentals']['thermal'][t_string] = {}
+                if str(j_line['alarm']) == 'False':
+                    u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 0
+                else:
+                    u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 1
+                u_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
+                u_dict['status']['environmentals']['thermal'][t_string]['tm'] = float(j_line['avg'])
+
+        else:
+            for line in therm_text:
+                if line == "":
+                    break
+                label = line[:line.find('{')]
+                therm_slot_number = re.search(match_therm_slot, label).group(0)
+                therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+                line = line[line.find('{'):]
+                line = line.replace('\'', '"')
+                line = line.replace(', }', ' }')
+                line = line.replace(', ]', ' ]')
+                line = re.sub(match_begin, ': "', line)
+                line = re.sub(match_end, '", ', line)
+                # line = line.replace(']"', ']')
+                line = re.sub(match_end_2, '" ', line)
+                # line = re.sub(match_wonk, '"', line)
+                j_line = ast.literal_eval(line)
+                t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+                if t_string not in u_dict['status']['environmentals']['thermal']:
+                    u_dict['status']['environmentals']['thermal'][t_string] = {}
+                u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
+                u_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
+                u_dict['status']['environmentals']['thermal'][t_string]['tm'] = str(j_line['avg'])
+    return u_dict
+
+##########################################################
+#
+#       Environmentals - Disk Partitions
+#
+##########################################################
+
+
+def envPartitions(fw, u_dict, api_key):
+    partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
+                      "r></state></system></show>"
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
+    match_brace = re.compile('(?<=[A-Za-z0-9]) }')
+
+    part_req = requests.get(prefix + partition_xpath + api_key, verify=False)
+    part_xml = et.fromstring(part_req.content)
+    part_text = part_xml.find('./result').text
+
+    line = part_text[part_text.find('{'):]
+    line = line.replace('\'', '"')
+    line = line.replace(', }', ' }')
+    line = re.sub(match_begin, ':"', line)
+    line = re.sub(match_end, '",', line)
+    line = re.sub(match_brace, '" }', line)
+    line = line.replace('}"', '}')
+    j_line = json.loads(line)
+    for key in j_line:
+        if key not in u_dict['status']['environmentals']['mounts']:
+            u_dict['status']['environmentals']['mounts'][key] = {}
+        size = int(j_line[key]['size'], 16)
+        used = int(j_line[key]['used'], 16)
+        avail = size - used
+        pct_used = round((float(used) / float(size)) * 100, 0)
+        u_dict['status']['environmentals']['mounts'][key]['s'] = size
+        u_dict['status']['environmentals']['mounts'][key]['u'] = used
+        u_dict['status']['environmentals']['mounts'][key]['a'] = avail
+        u_dict['status']['environmentals']['mounts'][key]['put'] = pct_used
+    return u_dict
+
+
+##########################################################
+#
+#       Environmentals - Raid Status
+#
+##########################################################
+
+
+def envRaid(fw, u_dict, api_key):
+    raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
+                 "te></system></show>"
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    if thisFW.family == ("5200" or "7000"):
+
+        match_begin = re.compile(': (?=[0-9a-fA-Z])')
+        match_end = re.compile(',(?= ")')
+        match_end_2 = re.compile(' (?=})')
+
+        match_raid_slot = re.compile('(?<=raid\.s)(.*)(?=\.ld)')
+        match_raid_ld = re.compile('(?<=\.ld)(.*)(?=\.drives)')
+
+        raid_req = requests.get(prefix + raid_xpath + api_key, verify=False)
+        raid_xml = et.fromstring(raid_req.content)
+        raid_text = raid_xml.find('./result').text
+
+        if raid_text is None:
+            print "No RAID data"
+        else:
+            raid_text = raid_text.split('\n')
+
+        for line in raid_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            raid_slot_number = re.search(match_raid_slot, label).group(0)
+            raid_slot_number = "s{}".format(raid_slot_number)
+            raid_ld_number = re.search(match_raid_ld, label).group(0)
+            raid_ld_number = "l{}".format(raid_ld_number)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = re.sub(match_begin, ':"', line)
+            line = re.sub(match_end, '",', line)
+            line = re.sub(match_end_2, '"', line)
+            line = line.replace('}"', '} ')
+            j_line = json.loads(line)
+            if raid_slot_number not in u_dict['status']['environmentals']['disks']:
+                u_dict['status']['environmentals']['disks'][raid_slot_number] = {}
+            if raid_ld_number not in u_dict['status']['environmentals']['disks'][raid_slot_number]:
+                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number] = {}
+            for n in range(0, 2):
+                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n] = {}
+                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['n'] = str(
+                    j_line[str(n)]['name'])
+                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['z'] = str(
+                    j_line[str(n)]['size'])
+                if j_line[str(n)]['status'] == 'active sync':
+                    u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 1
+                else:
+                    u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 0
+    return u_dict
+
+
+
+
+
 
 
 
