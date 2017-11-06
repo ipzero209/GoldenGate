@@ -20,7 +20,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def mpCPU(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sys.monitor.s*.mp.exports</filter></stat" \
-            "e></system></show>"
+            "e></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
     mp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
     mp_cpu_xml = et.fromstring(mp_cpu_req.content)
@@ -40,7 +40,7 @@ def mpCPU(fw, api_key, u_dict):
 
 def mpMem(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></" \
-            "system></show>"
+            "system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
     mp_mem_req = requests.get(prefix + xpath + api_key, verify=False)
     mp_mem_xml = et.fromstring(mp_mem_req.content)
@@ -75,7 +75,7 @@ def mpMem(fw, api_key, u_dict):
 
 def dpCPU(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></sta" \
-            "te></system></show>"
+            "te></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
     dp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
     dp_cpu_xml = et.fromstring(dp_cpu_req.content)
@@ -117,7 +117,7 @@ def dpCPU(fw, api_key, u_dict):
 
 def sessionInfo(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.stats.session</filter>" \
-            "</state></system></show>"
+            "</state></system></show>&key="
     prefix = "https://{}/api?".format(fw.mgmt_ip)
 
     # Slot/DP match criteria
@@ -172,7 +172,7 @@ def sessionInfo(fw, api_key, u_dict):
 
 def packetBnD(fw, u_dict, api_key):
     xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.packetbuffers</filter>" \
-            "</state></system></show>"
+            "</state></system></show>&key="
     prefix = "https://{}/api/?"
 
     # Slot/DP match criteria
@@ -221,9 +221,9 @@ def packetBnD(fw, u_dict, api_key):
 
 def intStats(fw, u_dict, api_key):
     rate_xpath = "<show><system><state><filter>sys.s*.p*.rate</filter></state></sy" \
-                 "stem></show>"
+                 "stem></show>&key="
     stats_xpath = "<show><system><state><filter>net.s*.eth*.stats</filter></state>" \
-                  "</system></show>"
+                  "</system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
@@ -283,7 +283,7 @@ def intStats(fw, u_dict, api_key):
 
 def intErrors(fw, u_dict, api_key):
     err_xpath = "<show><system><state><filter>sys.s*.p*.detail</filter></state></sy" \
-                "stem></show>"
+                "stem></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
@@ -348,7 +348,7 @@ def intErrors(fw, u_dict, api_key):
 
 def intState(fw, u_dict, api_key):
     state_xpath = "<show><system><state><filter>sw.dev.runtime.ifmon.port-states</f" \
-                  "ilter></state></system></show>"
+                  "ilter></state></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
@@ -398,7 +398,7 @@ def intState(fw, u_dict, api_key):
 
 def logRate(fw, u_dict, api_key):
     xpath = "<show><system><state><filter>sw.mgmt.runtime.lograte</filter></state>" \
-            "</system></show>"
+            "</system></show>&key="
 
     xpath_alt = "<show><system><state><filter>sw.logrcvr.runtime.write-lograte</fi" \
                 "lter></state></system></show>"
@@ -435,7 +435,7 @@ def logRate(fw, u_dict, api_key):
 def envFans(fw, u_dict, api_key):
     if "vm" not in thisFW.family and "220" not in thisFW.family:
         xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
-                "m></show>"
+                "m></show>&key="
         prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
         match_end = re.compile(',(?= ")')
@@ -493,7 +493,7 @@ def envPower(fw, u_dict, api_key):
         pass
     else:
         ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
-                   "/state></system></show>"
+                   "/state></system></show>&key="
         prefix = "https://{}/api/?".format(fw.mgmt_ip)
         match_begin = re.compile(': (?=[0-9a-fA-Z])')
         match_end = re.compile(',(?= ")')
@@ -551,7 +551,7 @@ def envPower(fw, u_dict, api_key):
 def envThermal(fw, u_dict, api_key):
     if "vm" not in thisFW.family:
         xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
-                "m></show>"
+                "m></show>&key="
         prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
         # Slot/Sensor match criteria
@@ -630,7 +630,7 @@ def envThermal(fw, u_dict, api_key):
 
 def envPartitions(fw, u_dict, api_key):
     partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
-                      "r></state></system></show>"
+                      "r></state></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
@@ -672,7 +672,7 @@ def envPartitions(fw, u_dict, api_key):
 
 def envRaid(fw, u_dict, api_key):
     raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
-                 "te></system></show>"
+                 "te></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
     if thisFW.family == ("5200" or "7000"):
 
@@ -722,6 +722,47 @@ def envRaid(fw, u_dict, api_key):
                     u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 1
                 else:
                     u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 0
+    return u_dict
+
+
+##########################################################
+#
+#       Log Forwarding
+#
+##########################################################
+
+
+def logFwd(fw, u_dict, api_key):
+    if thisFW.os_ver[:3] == "8.0":
+
+        autotag = ['autotag', {'avg': 'sw.logrcvr.autotag_avg_send_rate', 'sent': 'sw.logrcvr.autotag_sent_count',
+                               'drop': 'sw.logrcvr.autotag_drop_count'}]
+
+        http = ['http', {'avg': 'sw.logrcvr.http_avg_send_rate', 'sent': 'sw.logrcvr.http_sent_count',
+                         'drop': 'sw.logrcvr.http_drop_count'}]
+
+        raw = ['raw', {'avg': 'sw.logrcvr.raw_avg_send_rate', 'sent': 'sw.logrcvr.raw_sent_count',
+                       'drop': 'sw.logrcvr.raw_drop_count'}]
+
+        email = ['email', {'avg': 'sw.logrcvr.email_avg_send_rate', 'sent': 'sw.logrcvr.email_sent_count',
+                           'drop': 'sw.logrcvr.email_drop_count'}]
+
+        snmp = ['snmp', {'avg': 'sw.logrcvr.snmp_avg_send_rate', 'sent': 'sw.logrcvr.snmp_sent_count',
+                         'drop': 'sw.logrcvr.snmp_drop_count'}]
+
+        syslog = ['syslog', {'avg': 'sw.logrcvr.syslog_avg_send_rate', 'sent': 'sw.logrcvr.syslog_sent_count',
+                             'drop': 'sw.logrcvr.syslog_drop_count'}]
+
+        node_list = [autotag, http, raw, email, snmp, syslog]
+        prefix = "https://{}/api/?".format(fw.mgmt_ip)
+        for node in node_list:
+            for m_key in node[1]:
+                xpath = "<show><system><state><filter>{}</filter></state></system></show>&key=".format(node[1][m_key])
+                node_req = requests.get(prefix + xpath + api_key, verify=False)
+                node_xml = et.fromstring(node_req.content)
+                node_text = node_xml.find('./result').text
+                node_text = node_text[node_text.find(': ') + 2:]
+                u_dict['status']['logging-external']['external'][node[0]][m_key] = int(node_text)
     return u_dict
 
 

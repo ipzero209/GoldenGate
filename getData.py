@@ -70,7 +70,7 @@ update_dict['trend']['m'] = int(mp_cpu_json['cpu']['1minavg'])
 ##########################################################
 
 xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></" \
-        "system></show>"
+        "system></show>&key="
 
 mp_mem_req = requests.get(prefix + xpath + api_key, verify=False)
 mp_mem_xml = et.fromstring(mp_mem_req.content)
