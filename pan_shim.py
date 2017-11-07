@@ -5,9 +5,10 @@ import requests
 import xml.etree.ElementTree as et
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import panFW
-# import getData
+import Metrics
+import os
 from threading import Thread
-import pudb
+
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -46,6 +47,43 @@ def getDevices(pano_ip, key):
             this_dev = panFW.Device(serial, mgmt_ip, os_ver, family, is_ha)
             fw_obj_list.append(this_dev)
     return fw_obj_list
+
+
+def upCheck(fw_ip):
+    status = os.system('ping -c 1 {}'.format(fw_ip))
+    return status
+
+def getData(fw, key):
+    update_dict = {}
+    update_dict = {'trend': {}}
+    update_dict['status'] = {}
+    update_dict['trend']['slot'] = {}
+    update_dict['trend']['i'] = {}
+    update_dict['status']['logging-external'] = {}
+    update_dict['status']['logging-external']['external'] = {'autotag': {}, 'http': {},
+                                                             'raw': {}, 'email': {},
+                                                             'snmp': {}, 'syslog': {}}
+    update_dict['status']['ports'] = {}
+    update_dict['status']['environmentals'] = {}
+    update_dict['status']['environmentals']['mounts'] = {}
+    update_dict['status']['environmentals']['disks'] = {}
+    update_dict['status']['environmentals']['fans'] = {}
+    update_dict['status']['environmentals']['thermal'] = {}
+    update_dict['status']['environmentals']['power'] = {}
+
+    update_dict = Metrics.mpCPU(fw, key, update_dict)
+    update_dict = Metrics.mpMem(fw, key, update_dict)
+    update_dict = Metrics.dpCPU(fw, key, update_dict)
+    update_dict = Metrics.sessionInfo(fw, key, update_dict)
+    update_dict = Metrics.packetBnD(fw, key, update_dict)
+    update_dict = Metrics.intStats(fw, key, update_dict)
+    update_dict = Metrics.intErrors(fw, key, update_dict)
+    update_dict = Metrics.intState(fw, key, update_dict)
+    update_dict = Metrics.logRate(fw, key, update_dict)
+    if fw.family == ('vm' or '220'):
+        pass
+    else:
+        update_dict = Metrics.envFans(fw, key, update_dict)
 
 
 ##########################################################

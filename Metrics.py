@@ -170,7 +170,7 @@ def sessionInfo(fw, api_key, u_dict):
 ##########################################################
 
 
-def packetBnD(fw, u_dict, api_key):
+def packetBnD(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.packetbuffers</filter>" \
             "</state></system></show>&key="
     prefix = "https://{}/api/?"
@@ -219,7 +219,7 @@ def packetBnD(fw, u_dict, api_key):
 ##########################################################
 
 
-def intStats(fw, u_dict, api_key):
+def intStats(fw, api_key, u_dict):
     rate_xpath = "<show><system><state><filter>sys.s*.p*.rate</filter></state></sy" \
                  "stem></show>&key="
     stats_xpath = "<show><system><state><filter>net.s*.eth*.stats</filter></state>" \
@@ -238,7 +238,7 @@ def intStats(fw, u_dict, api_key):
     match_stats_slot = re.compile('(?<=net\.s)(.*)(?=\.eth)')
     match_stats_interface = re.compile('(?<=\.eth)(.*)(?=\.stats)')
 
-    if thisFW.os_ver[:3] == "8.0":
+    if fw.os_ver[:3] == "8.0":
         rate_req = requests.get(prefix + rate_xpath + api_key, verify=False)
         rate_xml = et.fromstring(rate_req.content)
         rate_text = rate_xml.find('./result').text
@@ -281,7 +281,7 @@ def intStats(fw, u_dict, api_key):
 ##########################################################
 
 
-def intErrors(fw, u_dict, api_key):
+def intErrors(fw, api_key, u_dict):
     err_xpath = "<show><system><state><filter>sys.s*.p*.detail</filter></state></sy" \
                 "stem></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
@@ -346,7 +346,7 @@ def intErrors(fw, u_dict, api_key):
 ##########################################################
 
 
-def intState(fw, u_dict, api_key):
+def intState(fw, api_key, u_dict):
     state_xpath = "<show><system><state><filter>sw.dev.runtime.ifmon.port-states</f" \
                   "ilter></state></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
@@ -396,7 +396,7 @@ def intState(fw, u_dict, api_key):
 ##########################################################
 
 
-def logRate(fw, u_dict, api_key):
+def logRate(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sw.mgmt.runtime.lograte</filter></state>" \
             "</system></show>&key="
 
@@ -406,7 +406,7 @@ def logRate(fw, u_dict, api_key):
     # Check both version and platform to see if this is a physical device vs. VM
     skiplist = ["vm", "200", "220", "500", "800", "3000", "5000"]
 
-    if (thisFW.os_ver[:3] == "8.0") and (thisFW.family not in skiplist):
+    if (fw.os_ver[:3] == "8.0") and (fw.family not in skiplist):
         lograte_req = requests.get(prefix + xpath + api_key, verify=False)
         lograte_xml = et.fromstring(lograte_req.content)
         lograte_text = lograte_xml.find('./result').text
@@ -432,51 +432,51 @@ def logRate(fw, u_dict, api_key):
 
 # TODO: Extract the model check to main function
 
-def envFans(fw, u_dict, api_key):
-    if "vm" not in thisFW.family and "220" not in thisFW.family:
-        xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
-                "m></show>&key="
-        prefix = "https://{}/api/?".format(fw.mgmt_ip)
+def envFans(fw, api_key, u_dict):
 
-        match_end = re.compile(',(?= ")')
-        match_begin = re.compile(': (?=[0-9a-fA-Z])')
-        match_fan_slot = re.compile('(?<=env\.s)(.*)(?=\.fan)')
-        match_fan_number = re.compile('(?<=fan\.)(.*)(?=:)')
+    xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
+            "m></show>&key="
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
-        rate_req = requests.get(prefix + xpath, verify=False)
-        rate_xml = et.fromstring(rate_req.content)
-        rate_text = rate_xml.find('./result').text
-        rate_text = rate_text.split('\n')
+    match_end = re.compile(',(?= ")')
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_fan_slot = re.compile('(?<=env\.s)(.*)(?=\.fan)')
+    match_fan_number = re.compile('(?<=fan\.)(.*)(?=:)')
 
-        for resp_string in rate_text:
-            if resp_string == "":
-                break
-            label = resp_string[:resp_string.find('{')]
-            fan_slot_number = re.search(match_fan_slot, label).group(0)
-            fan_number = re.search(match_fan_number, label).group(0)
-            fan_number = fan_number.replace('.', '/')
-            resp_string = resp_string[resp_string.find('{'):]
-            resp_string = resp_string.replace('\'', '"')
-            resp_string = resp_string.replace(', }', ' }')
-            resp_string = resp_string.replace(', ]', ' ]')
-            resp_string = re.sub(match_begin, ': "', resp_string)
-            resp_string = re.sub(match_end, '", ', resp_string)
-            if thisFW.family == "500":
-                match_end_2 = re.compile(' (?=})')
-                resp_string = re.sub(match_end_2, '"', resp_string)
-            j_line = ast.literal_eval(resp_string)
-            f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
-            if f_string not in u_dict['status']['environmentals']['fans']:
-                u_dict['status']['environmentals']['fans'][f_string] = {}
-            if j_line['alarm'] == 'False':
-                u_dict['status']['environmentals']['fans'][f_string]['alrm'] = 0
-            else:
-                u_dict['status']['environmentals']['fans'][f_string]['alrm'] = 1
-            if thisFW.family == "500":
-                u_dict['status']['environmentals']['fans'][f_string]['rpm'] = 0
-            else:
-                u_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
-            u_dict['status']['environmentals']['fans'][f_string]['de'] = str(j_line['desc'])
+    rate_req = requests.get(prefix + xpath, verify=False)
+    rate_xml = et.fromstring(rate_req.content)
+    rate_text = rate_xml.find('./result').text
+    rate_text = rate_text.split('\n')
+
+    for resp_string in rate_text:
+        if resp_string == "":
+            break
+        label = resp_string[:resp_string.find('{')]
+        fan_slot_number = re.search(match_fan_slot, label).group(0)
+        fan_number = re.search(match_fan_number, label).group(0)
+        fan_number = fan_number.replace('.', '/')
+        resp_string = resp_string[resp_string.find('{'):]
+        resp_string = resp_string.replace('\'', '"')
+        resp_string = resp_string.replace(', }', ' }')
+        resp_string = resp_string.replace(', ]', ' ]')
+        resp_string = re.sub(match_begin, ': "', resp_string)
+        resp_string = re.sub(match_end, '", ', resp_string)
+        if fw.family == "500":
+            match_end_2 = re.compile(' (?=})')
+            resp_string = re.sub(match_end_2, '"', resp_string)
+        j_line = ast.literal_eval(resp_string)
+        f_string = "fan{}/{}".format(str(fan_slot_number), str(fan_number))
+        if f_string not in u_dict['status']['environmentals']['fans']:
+            u_dict['status']['environmentals']['fans'][f_string] = {}
+        if j_line['alarm'] == 'False':
+            u_dict['status']['environmentals']['fans'][f_string]['alrm'] = 0
+        else:
+            u_dict['status']['environmentals']['fans'][f_string]['alrm'] = 1
+        if fw.family == "500":
+            u_dict['status']['environmentals']['fans'][f_string]['rpm'] = 0
+        else:
+            u_dict['status']['environmentals']['fans'][f_string]['rpm'] = int(j_line['avg'])
+        u_dict['status']['environmentals']['fans'][f_string]['de'] = str(j_line['desc'])
     return u_dict
 
 
@@ -487,9 +487,9 @@ def envFans(fw, u_dict, api_key):
 ##########################################################
 
 
-def envPower(fw, u_dict, api_key):
+def envPower(fw, api_key, u_dict):
     skiplist = ["200", "vm", "500", "800", "3000"]
-    if thisFW.family in skiplist:
+    if fw.family in skiplist:
         pass
     else:
         ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
@@ -548,8 +548,8 @@ def envPower(fw, u_dict, api_key):
 ##########################################################
 
 
-def envThermal(fw, u_dict, api_key):
-    if "vm" not in thisFW.family:
+def envThermal(fw, api_key, u_dict):
+    if "vm" not in fw.family:
         xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
                 "m></show>&key="
         prefix = "https://{}/api/?".format(fw.mgmt_ip)
@@ -571,7 +571,7 @@ def envThermal(fw, u_dict, api_key):
             print "No thermal data"
         else:
             therm_text = therm_text.split('\n')
-        if thisFW.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
+        if fw.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
             for line in therm_text:
                 if line == "":
                     break
@@ -628,7 +628,7 @@ def envThermal(fw, u_dict, api_key):
 ##########################################################
 
 
-def envPartitions(fw, u_dict, api_key):
+def envPartitions(fw, api_key, u_dict):
     partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
                       "r></state></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
@@ -670,11 +670,11 @@ def envPartitions(fw, u_dict, api_key):
 ##########################################################
 
 
-def envRaid(fw, u_dict, api_key):
+def envRaid(fw, api_key, u_dict):
     raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
                  "te></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
-    if thisFW.family == ("5200" or "7000"):
+    if fw.family == ("5200" or "7000"):
 
         match_begin = re.compile(': (?=[0-9a-fA-Z])')
         match_end = re.compile(',(?= ")')
@@ -732,8 +732,8 @@ def envRaid(fw, u_dict, api_key):
 ##########################################################
 
 
-def logFwd(fw, u_dict, api_key):
-    if thisFW.os_ver[:3] == "8.0":
+def logFwd(fw, api_key, u_dict):
+    if fw.os_ver[:3] == "8.0":
 
         autotag = ['autotag', {'avg': 'sw.logrcvr.autotag_avg_send_rate', 'sent': 'sw.logrcvr.autotag_sent_count',
                                'drop': 'sw.logrcvr.autotag_drop_count'}]
