@@ -84,6 +84,22 @@ def getData(fw, key):
         pass
     else:
         update_dict = Metrics.envFans(fw, key, update_dict)
+    if fw.family == ('200', 'vm', '500', '800', '3000')
+        pass
+    else:
+        update_dict = Metrics.envPower(fw, key, update_dict)
+    if fw.family == 'vm':
+        pass
+    else:
+        update_dict = Metrics.envThermal(fw, key, update_dict)
+    update_dict = Metrics.envPartitions(fw, key, update_dict)
+    if fw.family == ('5200' or '7000'):
+        update_dict = Metrics.envRaid(fw, key, update_dict)
+    else:
+        pass
+    if fw.os_ver[:3] == "8.0":
+        update_dict = Metrics.logFwd(fw, key, update_dict)
+
 
 
 ##########################################################
