@@ -6,8 +6,19 @@ import json
 import panFW
 import ast
 import re
-
+import logging
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+logger = logging.getLogger('Metrics')
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s  %(module)s:\t%(message)s')
+
+file_handler = logging.FileHandler('pan_shim.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
 
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)

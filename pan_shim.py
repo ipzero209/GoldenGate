@@ -7,10 +7,23 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import panFW
 import Metrics
 import os
+import logging
 from threading import Thread
 
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+logger = logging.getLogger('pan_shim')
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s  %(module)s:\t%(message)s')
+
+file_handler = logging.FileHandler('pan_shim.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+
 
 # Get the API from /etc/pan_shim
 
@@ -85,7 +98,7 @@ def getData(fw, pano_ip, key):
         pass
     else:
         update_dict = Metrics.envFans(fw, key, update_dict)
-    if fw.family == ('200', 'vm', '500', '800', '3000')
+    if fw.family == ('200', 'vm', '500', '800', '3000'):
         pass
     else:
         update_dict = Metrics.envPower(fw, key, update_dict)
@@ -100,7 +113,7 @@ def getData(fw, pano_ip, key):
         pass
     if fw.os_ver[:3] == "8.0":
         update_dict = Metrics.logFwd(fw, key, update_dict)
-    Metrics.sendData(fw, pano_ip, key, update_dict)
+    send = Metrics.sendData(fw, pano_ip, key, update_dict)
 
 
 ##########################################################
