@@ -488,57 +488,53 @@ def envFans(fw, api_key, u_dict):
 
 
 def envPower(fw, api_key, u_dict):
-    skiplist = ["200", "vm", "500", "800", "3000"]
-    if fw.family in skiplist:
-        pass
+    ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
+               "/state></system></show>&key="
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_end = re.compile(',(?= ")')
+    match_brace = re.compile('(?= })')
+
+    match_power_slot = re.compile('(?<=env\.s)(.*)(?=\.power-supply)')
+    match_power_number = re.compile('(?<=supply\.)(.*)(?=:)')
+
+    ps_req = requests.get(prefix + ps_xpath + api_key, verify=False)
+    ps_text = ps_req.content
+    ps_text = ''.join([i if ord(i) < 128 else '0' for i in ps_text])
+    ps_xml = et.fromstring(ps_text)
+    ps_text = ps_xml.find('./result').text
+    if ps_text is None:
+        print "No power supply data"
     else:
-        ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
-                   "/state></system></show>&key="
-        prefix = "https://{}/api/?".format(fw.mgmt_ip)
-        match_begin = re.compile(': (?=[0-9a-fA-Z])')
-        match_end = re.compile(',(?= ")')
-        match_brace = re.compile('(?= })')
+        ps_text = ps_text.split('\n')
 
-        match_power_slot = re.compile('(?<=env\.s)(.*)(?=\.power-supply)')
-        match_power_number = re.compile('(?<=supply\.)(.*)(?=:)')
-
-        ps_req = requests.get(prefix + ps_xpath + api_key, verify=False)
-        ps_text = ps_req.content
-        ps_text = ''.join([i if ord(i) < 128 else '0' for i in ps_text])
-        ps_xml = et.fromstring(ps_text)
-        ps_text = ps_xml.find('./result').text
-        if ps_text is None:
-            print "No power supply data"
+    for line in ps_text:
+        if line == "":
+            break
+        label = line[:line.find('{')]
+        power_slot = re.search(match_power_slot, label).group(0)
+        power_number = re.search(match_power_number, label).group(0)
+        p_string = "power{}/{}".format(str(power_slot), str(power_number))
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = re.sub(match_begin, ':"', line)
+        line = re.sub(match_end, '",', line)
+        line = re.sub(match_brace, '"', line)
+        line = line.replace(': ",', ': "",')
+        line = line.replace(': " ', ': "" ')
+        j_line = json.loads(line)
+        if p_string not in u_dict['status']['environmentals']['power']:
+            u_dict['status']['environmentals']['power'][p_string] = {}
+        if str(j_line['alarm']) == "False":
+            u_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
         else:
-            ps_text = ps_text.split('\n')
-
-        for line in ps_text:
-            if line == "":
-                break
-            label = line[:line.find('{')]
-            power_slot = re.search(match_power_slot, label).group(0)
-            power_number = re.search(match_power_number, label).group(0)
-            p_string = "power{}/{}".format(str(power_slot), str(power_number))
-            line = line[line.find('{'):]
-            line = line.replace('\'', '"')
-            line = line.replace(', }', ' }')
-            line = re.sub(match_begin, ':"', line)
-            line = re.sub(match_end, '",', line)
-            line = re.sub(match_brace, '"', line)
-            line = line.replace(': ",', ': "",')
-            line = line.replace(': " ', ': "" ')
-            j_line = json.loads(line)
-            if p_string not in u_dict['status']['environmentals']['power']:
-                u_dict['status']['environmentals']['power'][p_string] = {}
-            if str(j_line['alarm']) == "False":
-                u_dict['status']['environmentals']['power'][p_string]['alrm'] = 0
-            else:
-                u_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
-            if str(j_line['present']) == "False":
-                u_dict['status']['environmentals']['power'][p_string]['ins'] = 0
-            else:
-                u_dict['status']['environmentals']['power'][p_string]['ins'] = 1
-            u_dict['status']['environmentals']['power'][p_string]['de'] = str(j_line['desc'])
+            u_dict['status']['environmentals']['power'][p_string]['alrm'] = 1
+        if str(j_line['present']) == "False":
+            u_dict['status']['environmentals']['power'][p_string]['ins'] = 0
+        else:
+            u_dict['status']['environmentals']['power'][p_string]['ins'] = 1
+        u_dict['status']['environmentals']['power'][p_string]['de'] = str(j_line['desc'])
     return u_dict
 
 ##########################################################
@@ -549,76 +545,75 @@ def envPower(fw, api_key, u_dict):
 
 
 def envThermal(fw, api_key, u_dict):
-    if "vm" not in fw.family:
-        xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
-                "m></show>&key="
-        prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
+            "m></show>&key="
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
 
-        # Slot/Sensor match criteria
-        match_therm_slot = re.compile('(?<=env\.s)(.*)(?=\.therm)')
-        match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
+    # Slot/Sensor match criteria
+    match_therm_slot = re.compile('(?<=env\.s)(.*)(?=\.therm)')
+    match_therm_sensor = re.compile(('(?<=mal\.)(.*)(?=:)'))
 
-        # Match criteria for JSON formatting
-        match_begin = re.compile(': (?=[A-Z0-9\-\[])')
-        match_end = re.compile(',(?= ")')
-        # match_wonk = re.compile('[0-9]\](?=,)')
+    # Match criteria for JSON formatting
+    match_begin = re.compile(': (?=[A-Z0-9\-\[])')
+    match_end = re.compile(',(?= ")')
+    # match_wonk = re.compile('[0-9]\](?=,)')
 
-        therm_req = requests.get(prefix + xpath + api_key, verify=False)
+    therm_req = requests.get(prefix + xpath + api_key, verify=False)
 
-        therm_xml = et.fromstring(therm_req.content)
-        therm_text = therm_xml.find('./result').text
-        if therm_text == None:
-            print "No thermal data"
-        else:
-            therm_text = therm_text.split('\n')
-        if fw.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
-            for line in therm_text:
-                if line == "":
-                    break
-                label = line[:line.find('{')]
-                therm_slot_number = re.search(match_therm_slot, label).group(0)
-                therm_sensor_number = re.search(match_therm_sensor, label).group(0)
-                line = line[line.find('{'):]
-                line = line.replace('\'', '"')
-                line = line.replace(', }', ' }')
-                line = line.replace(', ]', ' ]')
-                line = re.sub(match_begin, ': "', line)
-                line = re.sub(match_end, '", ', line)
-                line = line.replace('"[', '[')
-                j_line = ast.literal_eval(line)
-                t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-                if t_string not in u_dict['status']['environmentals']['thermal']:
-                    u_dict['status']['environmentals']['thermal'][t_string] = {}
-                if str(j_line['alarm']) == 'False':
-                    u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 0
-                else:
-                    u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 1
-                u_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
-                u_dict['status']['environmentals']['thermal'][t_string]['tm'] = float(j_line['avg'])
+    therm_xml = et.fromstring(therm_req.content)
+    therm_text = therm_xml.find('./result').text
+    if therm_text == None:
+        print "No thermal data"
+    else:
+        therm_text = therm_text.split('\n')
+    if fw.family == ("7000" or "800" or "220" or "500" or "3000" or "5000"):
+        for line in therm_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            therm_slot_number = re.search(match_therm_slot, label).group(0)
+            therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = line.replace(', ]', ' ]')
+            line = re.sub(match_begin, ': "', line)
+            line = re.sub(match_end, '", ', line)
+            line = line.replace('"[', '[')
+            j_line = ast.literal_eval(line)
+            t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+            if t_string not in u_dict['status']['environmentals']['thermal']:
+                u_dict['status']['environmentals']['thermal'][t_string] = {}
+            if str(j_line['alarm']) == 'False':
+                u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 0
+            else:
+                u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = 1
+            u_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
+            u_dict['status']['environmentals']['thermal'][t_string]['tm'] = float(j_line['avg'])
 
-        else:
-            for line in therm_text:
-                if line == "":
-                    break
-                label = line[:line.find('{')]
-                therm_slot_number = re.search(match_therm_slot, label).group(0)
-                therm_sensor_number = re.search(match_therm_sensor, label).group(0)
-                line = line[line.find('{'):]
-                line = line.replace('\'', '"')
-                line = line.replace(', }', ' }')
-                line = line.replace(', ]', ' ]')
-                line = re.sub(match_begin, ': "', line)
-                line = re.sub(match_end, '", ', line)
-                # line = line.replace(']"', ']')
-                line = re.sub(match_end_2, '" ', line)
-                # line = re.sub(match_wonk, '"', line)
-                j_line = ast.literal_eval(line)
-                t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
-                if t_string not in u_dict['status']['environmentals']['thermal']:
-                    u_dict['status']['environmentals']['thermal'][t_string] = {}
-                u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
-                u_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
-                u_dict['status']['environmentals']['thermal'][t_string]['tm'] = str(j_line['avg'])
+    else:
+        for line in therm_text:
+            if line == "":
+                break
+            label = line[:line.find('{')]
+            therm_slot_number = re.search(match_therm_slot, label).group(0)
+            therm_sensor_number = re.search(match_therm_sensor, label).group(0)
+            line = line[line.find('{'):]
+            line = line.replace('\'', '"')
+            line = line.replace(', }', ' }')
+            line = line.replace(', ]', ' ]')
+            line = re.sub(match_begin, ': "', line)
+            line = re.sub(match_end, '", ', line)
+            # line = line.replace(']"', ']')
+            line = re.sub(match_end_2, '" ', line)
+            # line = re.sub(match_wonk, '"', line)
+            j_line = ast.literal_eval(line)
+            t_string = "thermal{}/{}".format(str(therm_slot_number), str(therm_sensor_number))
+            if t_string not in u_dict['status']['environmentals']['thermal']:
+                u_dict['status']['environmentals']['thermal'][t_string] = {}
+            u_dict['status']['environmentals']['thermal'][t_string]['alrm'] = str(j_line['alarm'])
+            u_dict['status']['environmentals']['thermal'][t_string]['de'] = str(j_line['desc'])
+            u_dict['status']['environmentals']['thermal'][t_string]['tm'] = str(j_line['avg'])
     return u_dict
 
 ##########################################################
@@ -674,54 +669,52 @@ def envRaid(fw, api_key, u_dict):
     raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
                  "te></system></show>&key="
     prefix = "https://{}/api/?".format(fw.mgmt_ip)
-    if fw.family == ("5200" or "7000"):
+    match_begin = re.compile(': (?=[0-9a-fA-Z])')
+    match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
 
-        match_begin = re.compile(': (?=[0-9a-fA-Z])')
-        match_end = re.compile(',(?= ")')
-        match_end_2 = re.compile(' (?=})')
+    match_raid_slot = re.compile('(?<=raid\.s)(.*)(?=\.ld)')
+    match_raid_ld = re.compile('(?<=\.ld)(.*)(?=\.drives)')
 
-        match_raid_slot = re.compile('(?<=raid\.s)(.*)(?=\.ld)')
-        match_raid_ld = re.compile('(?<=\.ld)(.*)(?=\.drives)')
+    raid_req = requests.get(prefix + raid_xpath + api_key, verify=False)
+    raid_xml = et.fromstring(raid_req.content)
+    raid_text = raid_xml.find('./result').text
 
-        raid_req = requests.get(prefix + raid_xpath + api_key, verify=False)
-        raid_xml = et.fromstring(raid_req.content)
-        raid_text = raid_xml.find('./result').text
+    if raid_text is None:
+        print "No RAID data"
+    else:
+        raid_text = raid_text.split('\n')
 
-        if raid_text is None:
-            print "No RAID data"
-        else:
-            raid_text = raid_text.split('\n')
-
-        for line in raid_text:
-            if line == "":
-                break
-            label = line[:line.find('{')]
-            raid_slot_number = re.search(match_raid_slot, label).group(0)
-            raid_slot_number = "s{}".format(raid_slot_number)
-            raid_ld_number = re.search(match_raid_ld, label).group(0)
-            raid_ld_number = "l{}".format(raid_ld_number)
-            line = line[line.find('{'):]
-            line = line.replace('\'', '"')
-            line = line.replace(', }', ' }')
-            line = re.sub(match_begin, ':"', line)
-            line = re.sub(match_end, '",', line)
-            line = re.sub(match_end_2, '"', line)
-            line = line.replace('}"', '} ')
-            j_line = json.loads(line)
-            if raid_slot_number not in u_dict['status']['environmentals']['disks']:
-                u_dict['status']['environmentals']['disks'][raid_slot_number] = {}
-            if raid_ld_number not in u_dict['status']['environmentals']['disks'][raid_slot_number]:
-                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number] = {}
-            for n in range(0, 2):
-                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n] = {}
-                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['n'] = str(
-                    j_line[str(n)]['name'])
-                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['z'] = str(
-                    j_line[str(n)]['size'])
-                if j_line[str(n)]['status'] == 'active sync':
-                    u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 1
-                else:
-                    u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 0
+    for line in raid_text:
+        if line == "":
+            break
+        label = line[:line.find('{')]
+        raid_slot_number = re.search(match_raid_slot, label).group(0)
+        raid_slot_number = "s{}".format(raid_slot_number)
+        raid_ld_number = re.search(match_raid_ld, label).group(0)
+        raid_ld_number = "l{}".format(raid_ld_number)
+        line = line[line.find('{'):]
+        line = line.replace('\'', '"')
+        line = line.replace(', }', ' }')
+        line = re.sub(match_begin, ':"', line)
+        line = re.sub(match_end, '",', line)
+        line = re.sub(match_end_2, '"', line)
+        line = line.replace('}"', '} ')
+        j_line = json.loads(line)
+        if raid_slot_number not in u_dict['status']['environmentals']['disks']:
+            u_dict['status']['environmentals']['disks'][raid_slot_number] = {}
+        if raid_ld_number not in u_dict['status']['environmentals']['disks'][raid_slot_number]:
+            u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number] = {}
+        for n in range(0, 2):
+            u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n] = {}
+            u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['n'] = str(
+                j_line[str(n)]['name'])
+            u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['z'] = str(
+                j_line[str(n)]['size'])
+            if j_line[str(n)]['status'] == 'active sync':
+                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 1
+            else:
+                u_dict['status']['environmentals']['disks'][raid_slot_number][raid_ld_number][n]['s'] = 0
     return u_dict
 
 
@@ -733,37 +726,54 @@ def envRaid(fw, api_key, u_dict):
 
 
 def logFwd(fw, api_key, u_dict):
-    if fw.os_ver[:3] == "8.0":
 
-        autotag = ['autotag', {'avg': 'sw.logrcvr.autotag_avg_send_rate', 'sent': 'sw.logrcvr.autotag_sent_count',
-                               'drop': 'sw.logrcvr.autotag_drop_count'}]
+    autotag = ['autotag', {'avg': 'sw.logrcvr.autotag_avg_send_rate', 'sent': 'sw.logrcvr.autotag_sent_count',
+                           'drop': 'sw.logrcvr.autotag_drop_count'}]
 
-        http = ['http', {'avg': 'sw.logrcvr.http_avg_send_rate', 'sent': 'sw.logrcvr.http_sent_count',
-                         'drop': 'sw.logrcvr.http_drop_count'}]
+    http = ['http', {'avg': 'sw.logrcvr.http_avg_send_rate', 'sent': 'sw.logrcvr.http_sent_count',
+                     'drop': 'sw.logrcvr.http_drop_count'}]
 
-        raw = ['raw', {'avg': 'sw.logrcvr.raw_avg_send_rate', 'sent': 'sw.logrcvr.raw_sent_count',
-                       'drop': 'sw.logrcvr.raw_drop_count'}]
+    raw = ['raw', {'avg': 'sw.logrcvr.raw_avg_send_rate', 'sent': 'sw.logrcvr.raw_sent_count',
+                   'drop': 'sw.logrcvr.raw_drop_count'}]
 
-        email = ['email', {'avg': 'sw.logrcvr.email_avg_send_rate', 'sent': 'sw.logrcvr.email_sent_count',
-                           'drop': 'sw.logrcvr.email_drop_count'}]
+    email = ['email', {'avg': 'sw.logrcvr.email_avg_send_rate', 'sent': 'sw.logrcvr.email_sent_count',
+                       'drop': 'sw.logrcvr.email_drop_count'}]
 
-        snmp = ['snmp', {'avg': 'sw.logrcvr.snmp_avg_send_rate', 'sent': 'sw.logrcvr.snmp_sent_count',
-                         'drop': 'sw.logrcvr.snmp_drop_count'}]
+    snmp = ['snmp', {'avg': 'sw.logrcvr.snmp_avg_send_rate', 'sent': 'sw.logrcvr.snmp_sent_count',
+                     'drop': 'sw.logrcvr.snmp_drop_count'}]
 
-        syslog = ['syslog', {'avg': 'sw.logrcvr.syslog_avg_send_rate', 'sent': 'sw.logrcvr.syslog_sent_count',
-                             'drop': 'sw.logrcvr.syslog_drop_count'}]
+    syslog = ['syslog', {'avg': 'sw.logrcvr.syslog_avg_send_rate', 'sent': 'sw.logrcvr.syslog_sent_count',
+                         'drop': 'sw.logrcvr.syslog_drop_count'}]
 
-        node_list = [autotag, http, raw, email, snmp, syslog]
-        prefix = "https://{}/api/?".format(fw.mgmt_ip)
-        for node in node_list:
-            for m_key in node[1]:
-                xpath = "<show><system><state><filter>{}</filter></state></system></show>&key=".format(node[1][m_key])
-                node_req = requests.get(prefix + xpath + api_key, verify=False)
-                node_xml = et.fromstring(node_req.content)
-                node_text = node_xml.find('./result').text
-                node_text = node_text[node_text.find(': ') + 2:]
-                u_dict['status']['logging-external']['external'][node[0]][m_key] = int(node_text)
+    node_list = [autotag, http, raw, email, snmp, syslog]
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    for node in node_list:
+        for m_key in node[1]:
+            xpath = "<show><system><state><filter>{}</filter></state></system></show>&key=".format(node[1][m_key])
+            node_req = requests.get(prefix + xpath + api_key, verify=False)
+            node_xml = et.fromstring(node_req.content)
+            node_text = node_xml.find('./result').text
+            node_text = node_text[node_text.find(': ') + 2:]
+            u_dict['status']['logging-external']['external'][node[0]][m_key] = int(node_text)
     return u_dict
+
+
+##########################################################
+#
+#       Log Forwarding
+#
+##########################################################
+
+
+def sendData(fw, pano_ip, key, u_dict):
+    prefix = "https://{}/api/?".format(pano_ip)
+    headerlist = {'Content-Type' : 'application/x-www.form-urlencoded'}
+    update_str = json.dumps(u_dict)
+    cmd = "type=op&key={}&cmd=<monitoring><external-input><device>{}</device><d" \
+          "ata><![CDATA[{}]]></data><external-input></monitoring>".format(key, fw.ser_num, update_str)
+    update_req = requests.post(prefix, headers=headerlist, data=cmd, verify=False)
+    update_resp = et.fromstring(update_req.content)
+    return update_resp.attrib['status']
 
 
 

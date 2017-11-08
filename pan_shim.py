@@ -53,7 +53,8 @@ def upCheck(fw_ip):
     status = os.system('ping -c 1 {}'.format(fw_ip))
     return status
 
-def getData(fw, key):
+
+def getData(fw, pano_ip, key):
     update_dict = {}
     update_dict = {'trend': {}}
     update_dict['status'] = {}
@@ -99,7 +100,7 @@ def getData(fw, key):
         pass
     if fw.os_ver[:3] == "8.0":
         update_dict = Metrics.logFwd(fw, key, update_dict)
-
+    Metrics.sendData(fw, pano_ip, key, update_dict)
 
 
 ##########################################################
