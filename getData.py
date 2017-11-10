@@ -13,7 +13,7 @@ import pudb
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-thisFW = panFW.Device('010401000105', '10.8.49.15', '8.0.5', "3000")
+thisFW = panFW.Device('vmPAN-Branch5', '015351000004768', '10.8.51.54', '8.0.0', "vm")
 
 aaaa = thisFW.family
 
@@ -695,6 +695,7 @@ if "vm" not in thisFW.family:
     # Match criteria for JSON formatting
     match_begin = re.compile(': (?=[A-Z0-9\-\[])')
     match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
     # match_wonk = re.compile('[0-9]\](?=,)')
 
     therm_req = requests.get(prefix + xpath, verify=False)
@@ -919,8 +920,6 @@ update_str = json.dumps(update_dict)
 pano_prefix = "http://10.3.4.63/api/?"
 headerlist = {'Content-Type':'application/x-www-form-urlencoded'}
 
-paramlist = {'type' : 'op',
-             'key' : 'LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'}
 
 key = '&key=LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09'
 
@@ -935,7 +934,7 @@ update_req = requests.post(pano_prefix, headers=headerlist, data=cmd, verify=Fal
 # print update_req.url
 # print "\n\n\n\n"
 
-
+print update_req.url
 print update_req.content
 
 

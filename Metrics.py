@@ -12,7 +12,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 logger = logging.getLogger('Metrics')
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s  %(module)s:%(funcName)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
 file_handler = logging.FileHandler('pan_shim.log')
 file_handler.setLevel(logging.DEBUG)
@@ -32,7 +32,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 def mpCPU(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sys.monitor.s*.mp.exports</filter></stat" \
             "e></system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     mp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
     mp_cpu_xml = et.fromstring(mp_cpu_req.content)
     mp_cpu_text = mp_cpu_xml.find('./result').text
@@ -52,7 +52,7 @@ def mpCPU(fw, api_key, u_dict):
 def mpMem(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>resource.s*.mp.memory</filter></state></" \
             "system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     mp_mem_req = requests.get(prefix + xpath + api_key, verify=False)
     mp_mem_xml = et.fromstring(mp_mem_req.content)
     mp_mem_text = mp_mem_xml.find('./result').text
@@ -87,7 +87,7 @@ def mpMem(fw, api_key, u_dict):
 def dpCPU(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sys.monitor.s*.dp*.exports</filter></sta" \
             "te></system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     dp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
     dp_cpu_xml = et.fromstring(dp_cpu_req.content)
     dp_cpu_text = dp_cpu_xml.find('./result').text
@@ -129,7 +129,7 @@ def dpCPU(fw, api_key, u_dict):
 def sessionInfo(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.stats.session</filter>" \
             "</state></system></show>&key="
-    prefix = "https://{}/api?".format(fw.mgmt_ip)
+    prefix = "https://{}/api?type=op&cmd=".format(fw.mgmt_ip)
 
     # Slot/DP match criteria
     match_session_slot = re.compile('(?<=mprelay\.)(s.*)(?=\.dp)')
@@ -184,7 +184,7 @@ def sessionInfo(fw, api_key, u_dict):
 def packetBnD(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>sw.mprelay.s*.dp*.packetbuffers</filter>" \
             "</state></system></show>&key="
-    prefix = "https://{}/api/?"
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
 
     # Slot/DP match criteria
     match_pkt_slot = re.compile('(?<=relay\.)(s.*)(?=\.dp)')
@@ -235,7 +235,7 @@ def intStats(fw, api_key, u_dict):
                  "stem></show>&key="
     stats_xpath = "<show><system><state><filter>net.s*.eth*.stats</filter></state>" \
                   "</system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
 
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
@@ -295,7 +295,7 @@ def intStats(fw, api_key, u_dict):
 def intErrors(fw, api_key, u_dict):
     err_xpath = "<show><system><state><filter>sys.s*.p*.detail</filter></state></sy" \
                 "stem></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
 
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
@@ -360,7 +360,7 @@ def intErrors(fw, api_key, u_dict):
 def intState(fw, api_key, u_dict):
     state_xpath = "<show><system><state><filter>sw.dev.runtime.ifmon.port-states</f" \
                   "ilter></state></system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
 
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
@@ -412,8 +412,8 @@ def logRate(fw, api_key, u_dict):
             "</system></show>&key="
 
     xpath_alt = "<show><system><state><filter>sw.logrcvr.runtime.write-lograte</fi" \
-                "lter></state></system></show>"
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+                "lter></state></system></show>&key="
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     # Check both version and platform to see if this is a physical device vs. VM
     skiplist = ["vm", "200", "220", "500", "800", "3000", "5000"]
 
@@ -429,7 +429,11 @@ def logRate(fw, api_key, u_dict):
         lograte_req = requests.get(prefix + xpath_alt + api_key, verify=False)
         lograte_xml = et.fromstring(lograte_req.content)
         lograte_text = lograte_xml.find('./result').text
-        lograte_text = lograte_text[lograte_text.find(':'):]
+        try:
+            lograte_text = lograte_text[lograte_text.find(':'):]
+        except AttributeError as e:
+            logger.error("Attribute error getting log rate for {}, S/N {}.".format(fw.h_name, fw.ser_num))
+            logger.debug("URL sent:\n{}{} response:\n{}".format(lograte_req.url, fw.h_name, lograte_req.content))
         lograte_text = lograte_text[2:]
         u_dict['trend']['l'] = int(lograte_text)
     return u_dict
@@ -447,14 +451,14 @@ def envFans(fw, api_key, u_dict):
 
     xpath = "<show><system><state><filter>env.s*.fan.*</filter></state></syste" \
             "m></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
 
     match_end = re.compile(',(?= ")')
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_fan_slot = re.compile('(?<=env\.s)(.*)(?=\.fan)')
     match_fan_number = re.compile('(?<=fan\.)(.*)(?=:)')
 
-    rate_req = requests.get(prefix + xpath, verify=False)
+    rate_req = requests.get(prefix + xpath + api_key, verify=False)
     rate_xml = et.fromstring(rate_req.content)
     rate_text = rate_xml.find('./result').text
     rate_text = rate_text.split('\n')
@@ -501,7 +505,7 @@ def envFans(fw, api_key, u_dict):
 def envPower(fw, api_key, u_dict):
     ps_xpath = "<show><system><state><filter>env.s*.power-supply.*</filter><" \
                "/state></system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
     match_brace = re.compile('(?= })')
@@ -558,7 +562,7 @@ def envPower(fw, api_key, u_dict):
 def envThermal(fw, api_key, u_dict):
     xpath = "<show><system><state><filter>env.s*.thermal.*</filter></state></syste" \
             "m></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
 
     # Slot/Sensor match criteria
     match_therm_slot = re.compile('(?<=env\.s)(.*)(?=\.therm)')
@@ -567,6 +571,7 @@ def envThermal(fw, api_key, u_dict):
     # Match criteria for JSON formatting
     match_begin = re.compile(': (?=[A-Z0-9\-\[])')
     match_end = re.compile(',(?= ")')
+    match_end_2 = re.compile(' (?=})')
     # match_wonk = re.compile('[0-9]\](?=,)')
 
     therm_req = requests.get(prefix + xpath + api_key, verify=False)
@@ -637,7 +642,7 @@ def envThermal(fw, api_key, u_dict):
 def envPartitions(fw, api_key, u_dict):
     partition_xpath = "<show><system><state><filter>resource.s*.mp.partition</filte" \
                       "r></state></system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
     match_end_2 = re.compile(' (?=})')
@@ -679,7 +684,7 @@ def envPartitions(fw, api_key, u_dict):
 def envRaid(fw, api_key, u_dict):
     raid_xpath = "<show><system><state><filter>sys.raid.s*.ld*.drives</filter></sta" \
                  "te></system></show>&key="
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     match_begin = re.compile(': (?=[0-9a-fA-Z])')
     match_end = re.compile(',(?= ")')
     match_end_2 = re.compile(' (?=})')
@@ -757,7 +762,7 @@ def logFwd(fw, api_key, u_dict):
                          'drop': 'sw.logrcvr.syslog_drop_count'}]
 
     node_list = [autotag, http, raw, email, snmp, syslog]
-    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     for node in node_list:
         for m_key in node[1]:
             xpath = "<show><system><state><filter>{}</filter></state></system></show>&key=".format(node[1][m_key])
@@ -777,13 +782,21 @@ def logFwd(fw, api_key, u_dict):
 
 
 def sendData(fw, pano_ip, key, u_dict):
-    prefix = "https://{}/api/?".format(pano_ip)
-    headerlist = {'Content-Type' : 'application/x-www.form-urlencoded'}
+    prefix = "http://{}/api/?".format(pano_ip)
+    headerlist = {'Content-Type' : 'application/x-www-form-urlencoded'}
     update_str = json.dumps(u_dict)
     cmd = "type=op&key={}&cmd=<monitoring><external-input><device>{}</device><d" \
-          "ata><![CDATA[{}]]></data><external-input></monitoring>".format(key, fw.ser_num, update_str)
+          "ata><![CDATA[{}]]></data></external-input></monitoring>".format(key, fw.ser_num, update_str)
     update_req = requests.post(prefix, headers=headerlist, data=cmd, verify=False)
-    update_resp = et.fromstring(update_req.content)
+    logger.debug("Update sent for device {}, S/N {}. URL:{}".format(fw.h_name, fw.ser_num, update_req.url))
+    try:
+        update_resp = et.fromstring(update_req.content)
+    except Exception as e:
+        logger.error("Could not convert response to XML object. Device {}, S/N {} "
+                     "response:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
+        return
+    logger.info("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
+    logger.info("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
     return update_resp.attrib['status']
 
 

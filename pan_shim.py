@@ -16,7 +16,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 logger = logging.getLogger('pan_shim')
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s  %(module)s:%(funcName)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
 file_handler = logging.FileHandler('pan_shim.log')
 file_handler.setLevel(logging.DEBUG)
@@ -96,20 +96,21 @@ def getData(fw, pano_ip, key):
     update_dict = Metrics.intErrors(fw, key, update_dict)
     update_dict = Metrics.intState(fw, key, update_dict)
     update_dict = Metrics.logRate(fw, key, update_dict)
-    if fw.family == ('vm' or '220'):
+    if fw.family in ['vm', '220']:
         pass
     else:
         update_dict = Metrics.envFans(fw, key, update_dict)
-    if fw.family == ('200', 'vm', '500', '800', '3000'):
+    if fw.family in ['200', 'vm', '500', '800', '3000']:
         pass
     else:
+        logger.debug(fw.family)
         update_dict = Metrics.envPower(fw, key, update_dict)
     if fw.family == 'vm':
         pass
     else:
         update_dict = Metrics.envThermal(fw, key, update_dict)
     update_dict = Metrics.envPartitions(fw, key, update_dict)
-    if fw.family == ('5200' or '7000'):
+    if fw.family in ['5200', '7000']:
         update_dict = Metrics.envRaid(fw, key, update_dict)
     else:
         pass
@@ -141,6 +142,17 @@ s_data.close()
 dev_list = getDevices(pano_ip, api_key)
 
 while True:
+    for device in dev_list:
+        status = upCheck(device.mgmt_ip)
+        if status != 0:
+            logger.error("Device {} is not reachable by ping".format(device.h_name))
+            pass
+        else:
+            data_thread = Thread(target=getData, args=(device, pano_ip, api_key))
+            data_thread.start()
+    sleep(300)
+
+
 
 
 
