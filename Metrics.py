@@ -12,7 +12,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 logger = logging.getLogger('Metrics')
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s  %(module)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s  %(module)s:%(funcName)s:\t%(message)s')
 
 file_handler = logging.FileHandler('pan_shim.log')
 file_handler.setLevel(logging.DEBUG)

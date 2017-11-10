@@ -3,20 +3,20 @@
 import shelve
 import requests
 import xml.etree.ElementTree as et
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import panFW
 import Metrics
 import os
 import logging
 from threading import Thread
-
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from time import sleep
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 logger = logging.getLogger('pan_shim')
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s  %(module)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s  %(module)s:%(funcName)s:\t%(message)s')
 
 file_handler = logging.FileHandler('pan_shim.log')
 file_handler.setLevel(logging.DEBUG)
@@ -53,16 +53,18 @@ def getDevices(pano_ip, key):
         if os_ver[:3] == "8.1":
             pass
         else:
+            hostname = device.find('hostname').text
             serial = device.find('serial').text
             mgmt_ip = device.find('ip-address').text
             family = device.find('family').text
             is_ha = 'no'
-            this_dev = panFW.Device(serial, mgmt_ip, os_ver, family, is_ha)
+            this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
             fw_obj_list.append(this_dev)
     return fw_obj_list
 
 
 def upCheck(fw_ip):
+    """Checks basic connectivity to the target device"""
     status = os.system('ping -c 1 {}'.format(fw_ip))
     return status
 
@@ -114,7 +116,12 @@ def getData(fw, pano_ip, key):
     if fw.os_ver[:3] == "8.0":
         update_dict = Metrics.logFwd(fw, key, update_dict)
     send = Metrics.sendData(fw, pano_ip, key, update_dict)
-
+    if send == "success":
+        return
+    else:
+        logger.error("Submission to Panorama failed in for device {}, S/N {} failed"
+                     " with status {}".format(fw.h_name, fw.ser_num, send))
+        return
 
 ##########################################################
 #
@@ -133,6 +140,7 @@ s_data.close()
 # Get initial list of devices
 dev_list = getDevices(pano_ip, api_key)
 
+while True:
 
 
 

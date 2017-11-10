@@ -9,7 +9,8 @@ class Device:
     """
 
 
-    def __init__(self, ser_num, mgmt_ip, os_ver, family, is_ha='no', ha_peer=None, ha_state=None):
+    def __init__(self, h_name, ser_num, mgmt_ip, os_ver, family, is_ha='no', ha_peer=None, ha_state=None):
+        self.h_name = h_name
         self.ser_num = ser_num
         self.mgmt_ip = mgmt_ip
         self.os_ver = os_ver
@@ -24,6 +25,7 @@ class Device:
 
 
     def prinfo(self):
+        print "Hostname:\t{}".format(self.h_name)
         print "S/N:\t{}".format(self.ser_num)
         print "IP:\t{}".format(self.mgmt_ip)
         print "SW-Version:\t{}".format(self.os_ver)
