@@ -14,7 +14,8 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
-file_handler = logging.FileHandler('pan_shim.log')
+#TODO: Change fileHandler back to pan_shim.log
+file_handler = logging.FileHandler('gg.log')
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
@@ -461,7 +462,11 @@ def envFans(fw, api_key, u_dict):
     rate_req = requests.get(prefix + xpath + api_key, verify=False)
     rate_xml = et.fromstring(rate_req.content)
     rate_text = rate_xml.find('./result').text
-    rate_text = rate_text.split('\n')
+    try:
+        rate_text = rate_text.split('\n')
+    except AttributeError as e:
+        logger.error("Error getting fan data for {}, S/N {}. Response is:\n{}"
+                     .format(fw.h_name, fw.ser_num, rate_req.content))
 
     for resp_string in rate_text:
         if resp_string == "":

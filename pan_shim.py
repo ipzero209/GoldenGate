@@ -18,7 +18,8 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
-file_handler = logging.FileHandler('pan_shim.log')
+#TODO: Change fileHandler back to pan_shim.log
+file_handler = logging.FileHandler('gg.log')
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
@@ -101,9 +102,9 @@ def getData(fw, pano_ip, key):
     else:
         update_dict = Metrics.envFans(fw, key, update_dict)
     if fw.family in ['200', 'vm', '500', '800', '3000']:
+        logger.debug("Skipping fan info for {}-{}. Family is {}".format(fw.h_name, fw.ser_num, fw.family))
         pass
     else:
-        logger.debug(fw.family)
         update_dict = Metrics.envPower(fw, key, update_dict)
     if fw.family == 'vm':
         pass
