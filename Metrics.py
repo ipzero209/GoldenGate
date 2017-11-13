@@ -22,6 +22,30 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
+##########################################################
+#
+#       Logging Level For This Module
+#
+##########################################################
+
+def setModOpts(opts_dict):
+    """Reads options from pan_shim.conf"""
+    logging_level = options_dict['LEVEL']
+    if logging_level == "debug":
+        logger.setLevel(logging.DEBUG)
+    elif logging_level == "info":
+        logger.setLevel(logging.INFO)
+    elif logging_level == "warning":
+        logger.setLevel(logging.WARNING)
+    elif logging_level == "error":
+        logger.setLevel(logging.ERROR)
+    elif logging_level == "critical":
+        logger.setLevel(logging.CRITICAL)
+    else:
+        logger.setLevel(logging.ERROR)
+
+
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 ##########################################################

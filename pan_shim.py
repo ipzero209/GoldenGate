@@ -51,6 +51,7 @@ def setOpts(opt_File):
     else:
         """Set defaults for all options"""
         logger.setLevel(logging.ERROR)
+        options_dict['LEVEL'] = "error"
     logging_level = options_dict['LEVEL']
     if logging_level == "debug":
         logger.setLevel(logging.DEBUG)
@@ -63,7 +64,9 @@ def setOpts(opt_File):
     elif logging_level == "critical":
         logger.setLevel(logging.CRITICAL)
     else:
+        options_dict['LEVEL'] = "error"
         logger.setLevel(logging.ERROR)
+
 
 
 
@@ -174,7 +177,7 @@ dev_list = getDevices(pano_ip, api_key)
 
 c_count = 0
 while True:
-    if c_count = 6:
+    if c_count == 6:
         dev_list = getDevices(pano_ip, api_key)
         c_count = 0
     for device in dev_list:
