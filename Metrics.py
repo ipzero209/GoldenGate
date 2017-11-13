@@ -672,8 +672,8 @@ def envPartitions(fw, api_key, u_dict):
         used = int(j_line[key]['used'], 16)
         avail = size - used
         pct_used = round((float(used) / float(size)) * 100, 0)
-        u_dict['status']['environmentals']['mounts'][key]['s'] = size
-        u_dict['status']['environmentals']['mounts'][key]['u'] = used
+        u_dict['status']['environmentals']['mounts'][key]['al'] = size
+        u_dict['status']['environmentals']['mounts'][key]['us'] = used
         u_dict['status']['environmentals']['mounts'][key]['a'] = avail
         u_dict['status']['environmentals']['mounts'][key]['put'] = pct_used
     return u_dict
