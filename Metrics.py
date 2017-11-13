@@ -800,8 +800,8 @@ def sendData(fw, pano_ip, key, u_dict):
         logger.error("Could not convert response to XML object. Device {}, S/N {} "
                      "response:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
         return
-    logger.info("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
-    logger.info("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
+    logger.debug("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
+    logger.debug("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
     return update_resp.attrib['status']
 
 

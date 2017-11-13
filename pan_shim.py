@@ -13,8 +13,11 @@ from time import sleep
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+
+
 logger = logging.getLogger('pan_shim')
-logger.setLevel(logging.DEBUG)
+
+
 
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
@@ -26,18 +29,42 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-# Get the API from /etc/pan_shim
 
-s_data = shelve.open('./data.db') #TODO - /etc/pan_shim/
-api_key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09" #s_data['api_key']
-pano_ip = "10.3.4.63" #s_data['pano_ip']
-s_data.close()
+
+
 
 ##########################################################
 #
 #       Functions
 #
 ##########################################################
+
+
+def setOpts(opt_File):
+    """Reads options from pan_shim.conf"""
+    options_dict = {}
+    if os.path.isfile(opt_File):
+        c_file = open(opt_File, 'r')
+        for line in c_file:
+            line = line.split(":")
+            options_dict[line[0]] = line[1]
+    else:
+        """Set defaults for all options"""
+        logger.setLevel(logging.ERROR)
+    logging_level = options_dict['LEVEL']
+    if logging_level == "debug":
+        logger.setLevel(logging.DEBUG)
+    elif logging_level == "info":
+        logger.setLevel(logging.INFO)
+    elif logging_level == "warning":
+        logger.setLevel(logging.WARNING)
+    elif logging_level == "error":
+        logger.setLevel(logging.ERROR)
+    elif logging_level == "critical":
+        logger.setLevel(logging.CRITICAL)
+    else:
+        logger.setLevel(logging.ERROR)
+
 
 
 def getDevices(pano_ip, key):
@@ -131,18 +158,25 @@ def getData(fw, pano_ip, key):
 #
 ##########################################################
 
-# Get the API from /etc/pan_shim
+# Get the API key from /etc/pan_shim
+if os.path.isfile('./data.db'):
+    s_data = shelve.open('./data.db') #TODO - /etc/pan_shim/
+    api_key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09" #s_data['api_key']
+    pano_ip = "10.3.4.63" #s_data['pano_ip']
+    s_data.close()
+else:
+    logger.error("No data file found. Please run shim_setup.py")
 
-s_data = shelve.open('./data.db') #TODO - /etc/pan_shim/
-api_key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09" #s_data['api_key']
-pano_ip = "10.3.4.63" #s_data['pano_ip']
-s_data.close()
-
+setOpts('./pan_shim.conf')
 
 # Get initial list of devices
 dev_list = getDevices(pano_ip, api_key)
 
+c_count = 0
 while True:
+    if c_count = 6:
+        dev_list = getDevices(pano_ip, api_key)
+        c_count = 0
     for device in dev_list:
         status = upCheck(device.mgmt_ip)
         if status != 0:
@@ -151,6 +185,7 @@ while True:
         else:
             data_thread = Thread(target=getData, args=(device, pano_ip, api_key))
             data_thread.start()
+    c_count += 1
     sleep(300)
 
 
