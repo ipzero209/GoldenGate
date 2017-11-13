@@ -283,6 +283,10 @@ def intStats(fw, api_key, u_dict):
             u_dict['trend']['i'][int_label]['ru'] = int(j_line['rx-unicast'])
             u_dict['trend']['i'][int_label]['tm'] = int(j_line['tx-multicast'])
             u_dict['trend']['i'][int_label]['rm'] = int(j_line['rx-multicast'])
+            r_total = int(j_line['rx-broadcast']) + int(j_line['rx-unicast']) + int(j_line['rx-multicast'])
+            t_total = int(j_line['tx-broadcast']) + int(j_line['tx-unicast']) + int(j_line['tx-multicast'])
+            u_dict['trend']['i'][int_label]['rp'] = r_total
+            u_dict['trend']['i'][int_label]['tp'] = t_total
     return u_dict
 
 
