@@ -43,14 +43,13 @@ logger.addHandler(file_handler)
 def setOpts(opt_File):
     """Reads options from pan_shim.conf"""
     options_dict = {}
-    options_dict['EXCLUDE'] = {}
-    ex_list = []
+    options_dict['EXCLUDE'] = []
     if os.path.isfile(opt_File):
         c_file = open(opt_File, 'r')
         for line in c_file:
             line = line.split(":")
             if line[0] == "EXCLUDE":
-                ex_list.append(str(line[1]))
+                options_dict['EXCLUDE'].append(str(line[1]))
             options_dict[line[0]] = line[1]
     else:
         """Set defaults for all options"""
@@ -70,11 +69,11 @@ def setOpts(opt_File):
     else:
         options_dict['LEVEL'] = "error"
         logger.setLevel(logging.ERROR)
+    return options_dict
 
 
 
-
-def getDevices(pano_ip, key):
+def getDevices(pano_ip, key, ex_list):
     """Returns a list of firewall objects for firewalls that are PAN-OS 8.0 or 
     earlier"""
     prefix = "https://{}/api/?".format(pano_ip)
@@ -85,11 +84,13 @@ def getDevices(pano_ip, key):
     fw_obj_list = []
     for device in devices:
         os_ver = device.find('sw-version').text
+        serial = device.find('serial').text
         if os_ver[:3] == "8.1":
+            pass
+        elif serial in ex_list:
             pass
         else:
             hostname = device.find('hostname').text
-            serial = device.find('serial').text
             mgmt_ip = device.find('ip-address').text
             family = device.find('family').text
             is_ha = 'no'
@@ -177,10 +178,11 @@ if os.path.isfile('./data'):
 else:
     logger.error("No data file found. Please run shim_setup.py")
 
-setOpts('./pan_shim.conf')
+o_dict = setOpts('./pan_shim.conf')
+exclude_list = o_dict['EXCLUDE']
 
 # Get initial list of devices
-dev_list = getDevices(pano_ip, api_key)
+dev_list = getDevices(pano_ip, api_key, exclude_list)
 for device in dev_list:
     logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
 
