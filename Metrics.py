@@ -3,6 +3,7 @@
 import requests
 import xml.etree.ElementTree as et
 import json
+import os
 import panFW
 import ast
 import re
@@ -16,33 +17,36 @@ formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)
 
 #TODO: Change fileHandler back to pan_shim.log
 file_handler = logging.FileHandler('gg.log')
-file_handler.setLevel(logging.DEBUG)
+
+
+options_dict = {}
+if os.path.isfile('./pan_shim.conf'):
+    c_file = open('pan_shim.conf', 'r')
+    for line in c_file:
+        line = line.split(":")
+        options_dict[line[0]] = line[1]
+else:
+    """Set defaults for all options"""
+    logger.setLevel(logging.ERROR)
+    options_dict['LEVEL'] = "error"
+logging_level = options_dict['LEVEL']
+if logging_level == "debug":
+    logger.setLevel(logging.DEBUG)
+elif logging_level == "info":
+    logger.setLevel(logging.INFO)
+elif logging_level == "warning":
+    logger.setLevel(logging.WARNING)
+elif logging_level == "error":
+    logger.setLevel(logging.ERROR)
+elif logging_level == "critical":
+    logger.setLevel(logging.CRITICAL)
+else:
+    options_dict['LEVEL'] = "error"
+    logger.setLevel(logging.ERROR)
 file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 
-
-##########################################################
-#
-#       Logging Level For This Module
-#
-##########################################################
-
-def setModOpts(opts_dict):
-    """Reads options from pan_shim.conf"""
-    logging_level = options_dict['LEVEL']
-    if logging_level == "debug":
-        logger.setLevel(logging.DEBUG)
-    elif logging_level == "info":
-        logger.setLevel(logging.INFO)
-    elif logging_level == "warning":
-        logger.setLevel(logging.WARNING)
-    elif logging_level == "error":
-        logger.setLevel(logging.ERROR)
-    elif logging_level == "critical":
-        logger.setLevel(logging.CRITICAL)
-    else:
-        logger.setLevel(logging.ERROR)
 
 
 
@@ -60,6 +64,7 @@ def mpCPU(fw, api_key, u_dict):
     prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     mp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
     mp_cpu_xml = et.fromstring(mp_cpu_req.content)
+    logging.debug("MP CPU string for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, mp_cpu_req.content))
     mp_cpu_text = mp_cpu_xml.find('./result').text
     mp_cpu_text = mp_cpu_text[mp_cpu_text.find('{'):]
     mp_cpu_text = mp_cpu_text.replace('\'', '"')

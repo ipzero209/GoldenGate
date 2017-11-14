@@ -43,10 +43,14 @@ logger.addHandler(file_handler)
 def setOpts(opt_File):
     """Reads options from pan_shim.conf"""
     options_dict = {}
+    options_dict['EXCLUDE'] = {}
+    ex_list = []
     if os.path.isfile(opt_File):
         c_file = open(opt_File, 'r')
         for line in c_file:
             line = line.split(":")
+            if line[0] == "EXCLUDE":
+                ex_list.append(str(line[1]))
             options_dict[line[0]] = line[1]
     else:
         """Set defaults for all options"""
@@ -90,6 +94,9 @@ def getDevices(pano_ip, key):
             family = device.find('family').text
             is_ha = 'no'
             this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
+            logging.debug("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
+                                                                    this_dev.ser_num,
+                                                                    this_dev.prinfo()))
             fw_obj_list.append(this_dev)
     return fw_obj_list
 
@@ -162,8 +169,8 @@ def getData(fw, pano_ip, key):
 ##########################################################
 
 # Get the API key from /etc/pan_shim
-if os.path.isfile('./data.db'):
-    s_data = shelve.open('./data.db') #TODO - /etc/pan_shim/
+if os.path.isfile('./data'):
+    s_data = shelve.open('./data') #TODO - /etc/pan_shim/
     api_key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09" #s_data['api_key']
     pano_ip = "10.3.4.63" #s_data['pano_ip']
     s_data.close()
@@ -174,18 +181,25 @@ setOpts('./pan_shim.conf')
 
 # Get initial list of devices
 dev_list = getDevices(pano_ip, api_key)
+for device in dev_list:
+    logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
 
 c_count = 0
 while True:
     if c_count == 6:
+        logging.info("-----It's been 30 minutes. Rebuilding device list.-----")
         dev_list = getDevices(pano_ip, api_key)
+        for device in dev_list:
+            logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
         c_count = 0
     for device in dev_list:
+        logging.info("-----Beginning Poll Cycle-----")
         status = upCheck(device.mgmt_ip)
         if status != 0:
             logger.error("Device {} is not reachable by ping".format(device.h_name))
             pass
         else:
+            logging.debug("Gathering data for {}, S/N {}.".format(device.h_name, device.ser_num))
             data_thread = Thread(target=getData, args=(device, pano_ip, api_key))
             data_thread.start()
     c_count += 1
