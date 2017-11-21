@@ -11,7 +11,7 @@
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 DIR=/usr/local/bin
-DAEMON=$DIR/toucher.py
+DAEMON=$DIR/pan_shim.py
 DAEMON_NAME=toucher
 
 DAEMON_OPTS=""
