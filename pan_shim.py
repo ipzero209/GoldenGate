@@ -95,7 +95,7 @@ def getDevices(pano_ip, key, ex_list):
             family = device.find('family').text
             is_ha = 'no'
             this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
-            logging.debug("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
+            logging.info("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
                                                                     this_dev.ser_num,
                                                                     this_dev.prinfo()))
             fw_obj_list.append(this_dev)
