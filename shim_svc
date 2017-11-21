@@ -6,13 +6,13 @@
 # DEFAULT-START: 2 3 4 5
 # DEFAULT-STOP:  0 1 6
 # Short-Description: Dev Mon data shim
-# Description: Provides devmon data ingestion for firewalls running PAN-OS 8.0 and earlier
+# Description: Provides DevMon data ingestion for firewalls running PAN-OS 8.0 and earlier
 #### END INIT INFO
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 DIR=/usr/local/bin
 DAEMON=$DIR/pan_shim.py
-DAEMON_NAME=toucher
+DAEMON_NAME=shim_svc
 
 DAEMON_OPTS=""
 
@@ -25,7 +25,6 @@ PIDFILE=/var/run/$DAEMON_NAME
 
 do_start () {
 	log_daemon_msg "Starting system $DAEMON_NAME daemon"
-	#start-stop-daemon --start --background --pidfile $PIDFILE --make-pidfile --user $DAEMON_USER --exec $DAEMON
 	start-stop-daemon --start --background --pidfile $PIDFILE --make-pidfile --exec $DAEMON
 	log_end_msg $?
 }

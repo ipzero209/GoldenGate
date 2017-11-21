@@ -22,7 +22,7 @@ logger = logging.getLogger('pan_shim')
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
 #TODO: Change fileHandler back to pan_shim.log
-file_handler = logging.FileHandler('gg.log')
+file_handler = logging.FileHandler('/var/log/pan/shim.log')
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
@@ -170,10 +170,10 @@ def getData(fw, pano_ip, key):
 ##########################################################
 
 # Get the API key from /etc/pan_shim
-if os.path.isfile('./data'):
-    s_data = shelve.open('./data') #TODO - /etc/pan_shim/
-    api_key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09" #s_data['api_key']
-    pano_ip = "10.3.4.63" #s_data['pano_ip']
+if os.path.isfile('/etc/pan_shim/data'):
+    s_data = shelve.open('/etc/pan_shim/data') #TODO - /etc/pan_shim/
+    api_key = s_data['api_key']
+    pano_ip = s_data['pano_ip']
     s_data.close()
 else:
     logger.error("No data file found. Please run shim_setup.py")

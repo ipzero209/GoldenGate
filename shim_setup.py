@@ -9,7 +9,13 @@ import os
 import logging
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+if os.getuid() != 0:
+    print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
+    exit(1)
+
 os.system('mkdir /var/log/pan')
+os.system('mkdir /etc/pan_shim/')
 
 
 logger = logging.getLogger("setup")
@@ -52,33 +58,56 @@ def prepService():
     """Moves files to the appropriate directories and sets the correct permissions"""
     logger.info("Copying shim_svc to /etc/init.d")
     shim_cp = os.system("cp ./shim_svc /etc/init.d/")
+    py_list = ['pan_shim.py', 'panFW.py', 'Metrics.py']
     if shim_cp != 0:
         logger.critical("Could not copy service file to /etc/init.d. Are we "
                          "running with sudo?")
         return 1
     logger.info("Setting permissions on shim_svc")
-    shim_perm = os.system("chmod 755 /etc/shim_svc")
+    shim_perm = os.system("chmod 755 /etc/init.d/shim_svc")
     if shim_perm != 0:
         logger.critical("Could not set permissions on /etc/init.d/shim_svc")
         return 1
-    logger.info("Creating /etc/pan_shim")
-    shim_etc = os.system("mkdir /etc/pan_shim")
-    if shim_etc != 0:
-        logger.critical("Could not create directory /etc/pan_shim")
-        return 1
     logger.info("Copying conf file to /etc/pan_shim")
     os.system("cp ./pan_shim.conf /etc/pan_shim/")
-    logger.info("Copying pan_shim.py to /usr/local/bin")
-    py_copy = os.system("cp ./pan_shim.py /usr/local/bin/")
-    if py_copy != 0:
-        logger.critical("Failed to copy pan_shim.py to /usr/local/bin. Are we "
-                         "running with sudo?")
-        return 1
-    logger.info("Setting permissions on pan_shim.py")
-    py_perm = os.system("chmod 755 /usr/local/bin/pan_shim.py")
-    if py_perm != 0:
-        logger.critical("Could not set permissions on /usr/local/bin/pan_shim.py")
-        return 1
+    for file in py_list:
+        logger.info("Copying {} to /usr/local/bin".format(file))
+        py_copy = os.system("cp {} /usr/local/bin/".format(file))
+        if py_copy != 0:
+            logger.critical("Failed to copy {} to /usr/local/bin".format(file))
+            return 1
+        logger.info("Setting permissions on {}".format(file))
+        py_perm = os.system("chmod 755 /usr/local/bin/{}".format(file))
+        if py_perm != 0:
+            logger.critical("Failed to set permissions on {}".format(file))
+            return 1
+    # logger.info("Copying pan_shim.py to /usr/local/bin")
+    # py_copy = os.system("cp ./pan_shim.py /usr/local/bin/")
+    # if py_copy != 0:
+    #     logger.critical("Failed to copy pan_shim.py to /usr/local/bin. Are we "
+    #                      "running with sudo?")
+    #     return 1
+    # logger.info("Setting permissions on pan_shim.py")
+    # py_perm = os.system("chmod 755 /usr/local/bin/pan_shim.py")
+    # if py_perm != 0:
+    #     logger.critical("Could not set permissions on /usr/local/bin/pan_shim.py")
+    #     return 1
+    # logger.info("Copying Metrics.py to /usr/local/bin")
+    # py_copy = os.system("cp ./Metrics.py /usr/local/bin/")
+    # if py_copy != 0:
+    #     logger.critical("Failed to copy Metrics.py to /usr/local/bin.")
+    #     return 1
+    # logger.info("Setting persmissions on Metrics.py")
+    # py_perm = os.system("chmod 755 /usr/local/bin/Metrics.py")
+    # if py_perm != 0:
+    #     logger.critical("Failed to set permissions on Metrics.py")
+    #     return 1
+    # logger.info("Copying panFW.py to /usr/local/bin")
+    # py_copy = os.system("cp ./panFW.py /usr/local/bin/")
+    # if py_copy != 0:
+    #     logger.critical("Failed to copy panFW to /usr/local/bin")
+    #     return 1
+    # py_perm
     logger.info("Updating rc.d")
     update_rc = os.system("update-rc.d shim_svc defaults")
     if update_rc != 0:
@@ -100,10 +129,7 @@ def svcStart():
 
 logger.info('Created log directory.')
 
-if os.getuid() != 0:
-    print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
-    logger.critical("Script not running as root. Re-run using sudo ./shim_setup.py")
-    exit(1)
+
 
 print "Welcome to pan_shim. This set up will guide you th"
 
