@@ -100,7 +100,12 @@ def svcStart():
 
 logger.info('Created log directory.')
 
-print "Welcome message" #TODO - print brief description of what the setup program will do.
+if os.getuid() != 0:
+    print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
+    logger.critical("Script not running as root. Re-run using sudo ./shim_setup.py")
+    exit(1)
+
+print "Welcome to pan_shim. This set up will guide you th"
 
 api_key = getKey()
 if api_key == 1:
@@ -118,4 +123,4 @@ if s_start == 1:
     logger.critical("Critical error when starting the service. See log for "
                     "details.")
 
-
+logger.info("Setup complete.")
