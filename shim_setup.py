@@ -15,7 +15,7 @@ os.system('mkdir /var/log/pan')
 logger = logging.getLogger("setup")
 logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler("/var/log/pan/shim_setup.log")
-formatter = logging.Formatter('%(asctime)s %(name)s\t\t%(levelname)s:\t\t\t\t%(message)s')
+formatter = logging.Formatter('%(asctime)s %(name)s\t%(levelname)s:\t\t%(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
@@ -33,6 +33,7 @@ def getKey():
     if key_request.status_code != 200:
         err_node = key_xml.find('./result/msg')
         logger.critical('Error retrieving API key from {}: {}'.format(pano_ip, err_node.text))
+        return 1
     key_node = key_xml.find('./result/key')
     logger.info("API key successfully retrieved from {}.".format(pano_ip))
     saveInfo('pano_ip', pano_ip)
@@ -40,7 +41,7 @@ def getKey():
 
 def saveInfo(key_str, data):
     """Used to shelve the API key for later use"""
-    loggger.info("Saving API key.")
+    logger.info("Saving API key.")
     s_data = shelve.open('/etc/pan_shim/data')
     s_data[key_str] = data
     s_data.close()
@@ -51,7 +52,7 @@ def prepService():
     """Moves files to the appropriate directories and sets the correct permissions"""
     logger.info("Copying shim_svc to /etc/init.d")
     shim_cp = os.system("cp ./shim_svc /etc/init.d/")
-    if shim_cp !=:
+    if shim_cp != 0:
         logger.critical("Could not copy service file to /etc/init.d. Are we "
                          "running with sudo?")
         return 1
@@ -102,10 +103,13 @@ logger.info('Created log directory.')
 print "Welcome message" #TODO - print brief description of what the setup program will do.
 
 api_key = getKey()
+if api_key == 1:
+    logger.critical("Error getting the API key")
+    exit(1)
 saveInfo('api_key', api_key)
 
 prep = prepService()
-if prep == 1
+if prep == 1:
     logger.critical("Critical error in service set up. See log for details.")
     exit(1)
 
