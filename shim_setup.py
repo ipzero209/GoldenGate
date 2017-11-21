@@ -39,26 +39,32 @@ def getKey():
     return key_node.text
 
 def saveInfo(key_str, data):
-    """Used to shelve data for later use"""
+    """Used to shelve the API key for later use"""
     loggger.info("Saving API key.")
     s_data = shelve.open('/etc/pan_shim/data')
     s_data[key_str] = data
     s_data.close()
+    logger.info("API key saved")
+    return
 
 def prepService():
+    """Moves files to the appropriate directories and sets the correct permissions"""
     logger.info("Copying shim_svc to /etc/init.d")
     shim_cp = os.system("cp ./shim_svc /etc/init.d/")
     if shim_cp !=:
         logger.critical("Could not copy service file to /etc/init.d. Are we "
                          "running with sudo?")
+        return 1
     logger.info("Setting permissions on shim_svc")
     shim_perm = os.system("chmod 755 /etc/shim_svc")
     if shim_perm != 0:
-        logger.critical("Could not set permissions on /etc.init.d/shim_svc")
+        logger.critical("Could not set permissions on /etc/init.d/shim_svc")
+        return 1
     logger.info("Creating /etc/pan_shim")
     shim_etc = os.system("mkdir /etc/pan_shim")
     if shim_etc != 0:
         logger.critical("Could not create directory /etc/pan_shim")
+        return 1
     logger.info("Copying conf file to /etc/pan_shim")
     os.system("cp ./pan_shim.conf /etc/pan_shim/")
     logger.info("Copying pan_shim.py to /usr/local/bin")
@@ -66,10 +72,30 @@ def prepService():
     if py_copy != 0:
         logger.critical("Failed to copy pan_shim.py to /usr/local/bin. Are we "
                          "running with sudo?")
+        return 1
     logger.info("Setting permissions on pan_shim.py")
     py_perm = os.system("chmod 755 /usr/local/bin/pan_shim.py")
     if py_perm != 0:
         logger.critical("Could not set permissions on /usr/local/bin/pan_shim.py")
+        return 1
+    logger.info("Updating rc.d")
+    update_rc = os.system("update-rc.d shim_svc defaults")
+    if update_rc != 0:
+        logger.critical("Failed to update rc.d")
+        return 1
+    return 0
+
+def svcStart():
+    """Starts the service"""
+    logger.info("Attempting to start the service")
+    svc_start = os.system("service shim_svc start")
+    if svc_start != 0:
+        logger.critical("Failed to start shim_svc")
+        return 1
+    return 0
+
+
+
 
 logger.info('Created log directory.')
 
@@ -77,5 +103,15 @@ print "Welcome message" #TODO - print brief description of what the setup progra
 
 api_key = getKey()
 saveInfo('api_key', api_key)
+
+prep = prepService()
+if prep == 1
+    logger.critical("Critical error in service set up. See log for details.")
+    exit(1)
+
+s_start = svcStart()
+if s_start == 1:
+    logger.critical("Critical error when starting the service. See log for "
+                    "details.")
 
 
