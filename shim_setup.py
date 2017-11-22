@@ -92,33 +92,6 @@ def prepService():
         logger.warning("Failed to set permissions on shim log file. Please manually"
                        "set 766 permissions after setup is complete, then restart"
                        "the service.")
-    # logger.info("Copying pan_shim.py to /usr/local/bin")
-    # py_copy = os.system("cp ./pan_shim.py /usr/local/bin/")
-    # if py_copy != 0:
-    #     logger.critical("Failed to copy pan_shim.py to /usr/local/bin. Are we "
-    #                      "running with sudo?")
-    #     return 1
-    # logger.info("Setting permissions on pan_shim.py")
-    # py_perm = os.system("chmod 755 /usr/local/bin/pan_shim.py")
-    # if py_perm != 0:
-    #     logger.critical("Could not set permissions on /usr/local/bin/pan_shim.py")
-    #     return 1
-    # logger.info("Copying Metrics.py to /usr/local/bin")
-    # py_copy = os.system("cp ./Metrics.py /usr/local/bin/")
-    # if py_copy != 0:
-    #     logger.critical("Failed to copy Metrics.py to /usr/local/bin.")
-    #     return 1
-    # logger.info("Setting persmissions on Metrics.py")
-    # py_perm = os.system("chmod 755 /usr/local/bin/Metrics.py")
-    # if py_perm != 0:
-    #     logger.critical("Failed to set permissions on Metrics.py")
-    #     return 1
-    # logger.info("Copying panFW.py to /usr/local/bin")
-    # py_copy = os.system("cp ./panFW.py /usr/local/bin/")
-    # if py_copy != 0:
-    #     logger.critical("Failed to copy panFW to /usr/local/bin")
-    #     return 1
-    # py_perm
     logger.info("Updating rc.d")
     update_rc = os.system("update-rc.d shim_svc defaults")
     if update_rc != 0:
