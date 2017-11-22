@@ -17,17 +17,38 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 logger = logging.getLogger('pan_shim')
 
-
-
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
-#TODO: Change fileHandler back to pan_shim.log
+
 file_handler = logging.FileHandler('/var/log/pan/shim.log')
-file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 
+options_dict = {}
+options_dict['EXCLUDE'] = []
+if os.path.isfile('/etc/pan_shim/pan_shim.conf'):
+    c_file = open('/etc/pan_shim/pan_shim.conf', 'r')
+    for line in c_file:
+        line = line.split(":")
+        if line[0] == "LEVEL":
+            logging_level = line[1].strip('\n')
+else:
+    """Set defaults for all options"""
+    logger.setLevel(logging.ERROR)
+
+if logging_level == "debug":
+    logger.setLevel(logging.DEBUG)
+elif logging_level == "info":
+    logger.setLevel(logging.INFO)
+elif logging_level == "warning":
+    logger.setLevel(logging.WARNING)
+elif logging_level == "error":
+    logger.setLevel(logging.ERROR)
+elif logging_level == "critical":
+    logger.setLevel(logging.CRITICAL)
+else:
+    logger.setLevel(logging.ERROR)
 
 
 
@@ -49,27 +70,9 @@ def setOpts(opt_File):
         for line in c_file:
             line = line.split(":")
             if line[0] == "EXCLUDE":
-                options_dict['EXCLUDE'].append(str(line[1]))
-            options_dict[line[0]] = line[1]
-    else:
-        """Set defaults for all options"""
-        logger.setLevel(logging.ERROR)
-        options_dict['LEVEL'] = "error"
-    logging_level = options_dict['LEVEL']
-    if logging_level == "debug":
-        logger.setLevel(logging.DEBUG)
-    elif logging_level == "info":
-        logger.setLevel(logging.INFO)
-    elif logging_level == "warning":
-        logger.setLevel(logging.WARNING)
-    elif logging_level == "error":
-        logger.setLevel(logging.ERROR)
-    elif logging_level == "critical":
-        logger.setLevel(logging.CRITICAL)
-    else:
-        options_dict['LEVEL'] = "error"
-        logger.setLevel(logging.ERROR)
-    return options_dict
+                options_dict['EXCLUDE'].append(str(line[1].strip('\n')))
+    return options_dict['EXCLUDE']
+
 
 
 
@@ -178,8 +181,8 @@ if os.path.isfile('/etc/pan_shim/data'):
 else:
     logger.error("No data file found. Please run shim_setup.py")
 
-o_dict = setOpts('./pan_shim.conf')
-exclude_list = o_dict['EXCLUDE']
+exclude_list = setOpts('/etc/pan_shim/pan_shim.conf')
+
 
 # Get initial list of devices
 dev_list = getDevices(pano_ip, api_key, exclude_list)

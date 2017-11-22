@@ -10,26 +10,28 @@ import re
 import logging
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-logger = logging.getLogger('Metrics')
-logger.setLevel(logging.DEBUG)
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+
+logger = logging.getLogger("Metrics")
+
 
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
-#TODO: Change fileHandler back to pan_shim.log
-file_handler = logging.FileHandler('gg.log')
+
+file_handler = logging.FileHandler('/var/log/pan/shim.log')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 
-options_dict = {}
-if os.path.isfile('./pan_shim.conf'):
-    c_file = open('pan_shim.conf', 'r')
+if os.path.isfile('/etc/pan_shim/pan_shim.conf'):
+    c_file = open('/etc/pan_shim/pan_shim.conf', 'r')
     for line in c_file:
         line = line.split(":")
-        options_dict[line[0]] = line[1]
+        logging_level = line[1].strip('\n')
 else:
     """Set defaults for all options"""
     logger.setLevel(logging.ERROR)
-    options_dict['LEVEL'] = "error"
-logging_level = options_dict['LEVEL']
 if logging_level == "debug":
     logger.setLevel(logging.DEBUG)
 elif logging_level == "info":
@@ -41,16 +43,15 @@ elif logging_level == "error":
 elif logging_level == "critical":
     logger.setLevel(logging.CRITICAL)
 else:
-    options_dict['LEVEL'] = "error"
     logger.setLevel(logging.ERROR)
-file_handler.setFormatter(formatter)
-
-logger.addHandler(file_handler)
 
 
 
 
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+
+
+
 
 ##########################################################
 #

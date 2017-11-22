@@ -81,6 +81,17 @@ def prepService():
         if py_perm != 0:
             logger.critical("Failed to set permissions on {}".format(file))
             return 1
+    logger.info("Setting up log file.")
+    log_touch = os.system('touch /var/log/pan/shim.log')
+    if log_touch != 0:
+        logger.warning("Failed to create shim log file. May need to manually set"
+                       "permissions after setup")
+    logger.info("Setting permissions on him log file")
+    log_perm = os.system("chmod 766 /var/log/pan/shim.log")
+    if log_perm != 0:
+        logger.warning("Failed to set permissions on shim log file. Please manually"
+                       "set 766 permissions after setup is complete, then restart"
+                       "the service.")
     # logger.info("Copying pan_shim.py to /usr/local/bin")
     # py_copy = os.system("cp ./pan_shim.py /usr/local/bin/")
     # if py_copy != 0:
