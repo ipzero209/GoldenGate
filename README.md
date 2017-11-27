@@ -59,8 +59,8 @@ The conf file is located at /etc/pan_shim/pan_shim.conf. There are currently two
     D. error
     E. critical
   2. EXLCUDE: This is a tuple that will allow you to exclude certain serial numbers from being polled (one entry per line). Example:
-      EXCLUDE:000013846783
-      EXCLUDE:003210045732
+      EXCLUDE:000013846783  
+      EXCLUDE:003210045732  
   3. Restart the service for changes to take effect.
     A. 'sudo service shim_svc restart'
     
