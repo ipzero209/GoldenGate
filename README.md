@@ -5,7 +5,7 @@ This software is meant to run alongside Panorama installations running PAN-OS 8.
 ## Dependencies
 
   1. Linux: This project was tested on Ubuntu, but will work on any modern Linux distribution. It does use initd for service management, but you can adapt it to use systemd as needed.
-  2. Python Modules:
+  2. Python Modules:  
     A. Python Module - requests: This is a widely used module for implementing HTTP requests. Information can be found here:
       i. [Github repo](https://github.com/requests/requests)
       ii. [Docs](http://docs.python-requests.org/en/master/)
