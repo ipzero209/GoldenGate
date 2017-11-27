@@ -98,7 +98,7 @@ def getDevices(pano_ip, key, ex_list):
             family = device.find('family').text
             is_ha = 'no'
             this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
-            logging.info("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
+            logger.info("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
                                                                     this_dev.ser_num,
                                                                     this_dev.prinfo()))
             fw_obj_list.append(this_dev)
@@ -187,24 +187,24 @@ exclude_list = setOpts('/etc/pan_shim/pan_shim.conf')
 # Get initial list of devices
 dev_list = getDevices(pano_ip, api_key, exclude_list)
 for device in dev_list:
-    logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
+    logger.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
 
 c_count = 0
 while True:
+    logger.info("-----Beginning Poll Cycle-----")
     if c_count == 6:
-        logging.info("-----It's been 30 minutes. Rebuilding device list.-----")
+        logger.info("-----It's been 30 minutes. Rebuilding device list.-----")
         dev_list = getDevices(pano_ip, api_key)
         for device in dev_list:
-            logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
+            logger.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
         c_count = 0
     for device in dev_list:
-        logging.info("-----Beginning Poll Cycle-----")
         status = upCheck(device.mgmt_ip)
         if status != 0:
             logger.error("Device {} is not reachable by ping".format(device.h_name))
             pass
         else:
-            logging.debug("Gathering data for {}, S/N {}.".format(device.h_name, device.ser_num))
+            logger.debug("Gathering data for {}, S/N {}.".format(device.h_name, device.ser_num))
             data_thread = Thread(target=getData, args=(device, pano_ip, api_key))
             data_thread.start()
     c_count += 1

@@ -13,7 +13,8 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
-logger = logging.getLogger("Metrics")
+
+logger = logging.getLogger(__name__)
 
 
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
@@ -827,15 +828,15 @@ def sendData(fw, pano_ip, key, u_dict):
     cmd = "type=op&key={}&cmd=<monitoring><external-input><device>{}</device><d" \
           "ata><![CDATA[{}]]></data></external-input></monitoring>".format(key, fw.ser_num, update_str)
     update_req = requests.post(prefix, headers=headerlist, data=cmd, verify=False)
-    logger.debug("Update sent for device {}, S/N {}. URL:{}".format(fw.h_name, fw.ser_num, update_req.url))
+    logging.debug("Update sent for device {}, S/N {}. URL:{}".format(fw.h_name, fw.ser_num, update_req.url))
     try:
         update_resp = et.fromstring(update_req.content)
     except Exception as e:
-        logger.error("Could not convert response to XML object. Device {}, S/N {} "
+        logging.error("Could not convert response to XML object. Device {}, S/N {} "
                      "response:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
         return
-    logger.debug("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
-    logger.debug("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
+    logging.debug("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
+    logging.debug("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
     return update_resp.attrib['status']
 
 
