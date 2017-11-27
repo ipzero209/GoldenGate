@@ -52,12 +52,12 @@ This script uses the XML API to gather device monitoring data from the firewalls
 ## Configuration
 
 The conf file is located at /etc/pan_shim/pan_shim.conf. There are currently two supported options:
-  1. LEVEL: this is a tuple that dictates the logging level. Values can be one of:
-    A. debug
-    B. info
-    C. warning
-    D. error
-    E. critical
+  1. LEVEL: this is a tuple that dictates the logging level. Values can be one of:  
+    A. debug  
+    B. info  
+    C. warning  
+    D. error  
+    E. critical  
   2. EXLCUDE: This is a tuple that will allow you to exclude certain serial numbers from being polled (one entry per line). Example:  
       EXCLUDE:000013846783  
       EXCLUDE:003210045732  
