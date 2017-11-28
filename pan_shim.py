@@ -98,9 +98,7 @@ def getDevices(pano_ip, key, ex_list):
             family = device.find('family').text
             is_ha = 'no'
             this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
-            logger.info("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
-                                                                    this_dev.ser_num,
-                                                                    this_dev.prinfo()))
+            logger.info("Added device:\n{}\n-------------------".format(this_dev.prinfo()))
             fw_obj_list.append(this_dev)
     return fw_obj_list
 
@@ -194,7 +192,7 @@ while True:
     logger.info("-----Beginning Poll Cycle-----")
     if c_count == 6:
         logger.info("-----It's been 30 minutes. Rebuilding device list.-----")
-        dev_list = getDevices(pano_ip, api_key)
+        dev_list = getDevices(pano_ip, api_key, exclude_list)
         for device in dev_list:
             logger.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
         c_count = 0

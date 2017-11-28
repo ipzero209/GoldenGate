@@ -66,7 +66,7 @@ def mpCPU(fw, api_key, u_dict):
     prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
     mp_cpu_req = requests.get(prefix + xpath + api_key, verify=False)
     mp_cpu_xml = et.fromstring(mp_cpu_req.content)
-    logging.debug("MP CPU string for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, mp_cpu_req.content))
+    logger.debug("MP CPU string for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, mp_cpu_req.content))
     mp_cpu_text = mp_cpu_xml.find('./result').text
     mp_cpu_text = mp_cpu_text[mp_cpu_text.find('{'):]
     mp_cpu_text = mp_cpu_text.replace('\'', '"')
@@ -828,15 +828,15 @@ def sendData(fw, pano_ip, key, u_dict):
     cmd = "type=op&key={}&cmd=<monitoring><external-input><device>{}</device><d" \
           "ata><![CDATA[{}]]></data></external-input></monitoring>".format(key, fw.ser_num, update_str)
     update_req = requests.post(prefix, headers=headerlist, data=cmd, verify=False)
-    logging.debug("Update sent for device {}, S/N {}. URL:{}".format(fw.h_name, fw.ser_num, update_req.url))
+    logger.debug("Update sent for device {}, S/N {}. URL:{}".format(fw.h_name, fw.ser_num, update_req.url))
     try:
         update_resp = et.fromstring(update_req.content)
     except Exception as e:
-        logging.error("Could not convert response to XML object. Device {}, S/N {} "
+        logger.error("Could not convert response to XML object. Device {}, S/N {} "
                      "response:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
         return
-    logging.debug("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
-    logging.debug("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
+    logger.debug("Response for {}, S/N {}:\n{}".format(fw.h_name, fw.ser_num, update_req.content))
+    logger.debug("Status for {}, S/N {}: {}".format(fw.h_name, fw.ser_num, update_resp.attrib['status']))
     return update_resp.attrib['status']
 
 

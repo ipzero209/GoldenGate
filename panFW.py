@@ -25,12 +25,14 @@ class Device:
 
 
     def prinfo(self):
-        print "Hostname:\t{}".format(self.h_name)
-        print "S/N:\t{}".format(self.ser_num)
-        print "IP:\t{}".format(self.mgmt_ip)
-        print "SW-Version:\t{}".format(self.os_ver)
-        print "Model Family:\t{}".format(self.family)
-        print "Is HA:\t{}".format(self.is_ha)
+        p_string = ""
+        p_string = p_string + "Hostname:\t{}\n".format(self.h_name)
+        p_string = p_string + "S/N:\t{}\n".format(self.ser_num)
+        p_string = p_string + "IP:\t{}\n".format(self.mgmt_ip)
+        p_string = p_string + "SW-Version:\t{}\n".format(self.os_ver)
+        p_string = p_string + "Model Family:\t{}\n".format(self.family)
+        p_string = p_string + "Is HA:\t{}\n".format(self.is_ha)
         if self.is_ha == 'yes':
-            print "Peer:\t{}".format(self.ha_peer)
-            print "HA State:\t{}".format(self.ha_state)
+            p_string = p_string + "Peer:\t{}\n".format(self.ha_peer)
+            p_string = p_string + "HA State:\t{}\n".format(self.ha_state)
+        return p_string
