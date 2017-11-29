@@ -146,3 +146,4 @@ if s_start == 1:
                     "details.")
 
 logger.info("Setup complete.")
+print "Setup complete"
