@@ -118,6 +118,14 @@ def svcStart():
     if svc_start != 0:
         logger.critical("Failed to start shim_svc")
         return 1
+    svc_status = os.popen("service shim_svc status").read()
+    if "(exited)" in svc_status:
+        logger.critical("shim_svc exited. Please start service manually using "
+                        "'sudo service shim_svc start")
+        print "the shim service failed to start automatically. Please start the " \
+              "service manually using 'sudo service shim_svc start"
+    elif "(running)" in svc_status:
+        logger.info("shim_svc started successfully")
     return 0
 
 
