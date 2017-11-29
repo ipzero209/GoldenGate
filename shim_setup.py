@@ -25,7 +25,10 @@ formatter = logging.Formatter('%(asctime)s %(name)s\t%(levelname)s:\t\t%(message
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
-
+def upCheck(ip_addr):
+    """Checks basic connectivity to the target device"""
+    status = os.system('ping -c 1 {}'.format(ip_addr))
+    return status
 
 def getKey():
     """Used to fetch the API key for use in polling devices"""
@@ -34,7 +37,16 @@ def getKey():
                      "Panorama and all Panorama managed firewalls.\n\nUsername: ")
     passwd = getpass.getpass("\nEnter the password for the API user: ")
     key_string = "https://" + pano_ip + "/api/?type=keygen&user=" + user + "&password=" + passwd
-    key_request = requests.get(key_string, verify=False)
+    pano_status = upCheck(pano_ip)
+    if pano_status != 0:
+        path = os.popen("tracepath -l 1460 {}".format(pano_ip)).read()
+        logger.warning("Cannot ping Panorama. Path is\n\n{}".format(path))
+        print "Cannot ping Panorama from here. Path is\n\n{}".format(path)
+    try:
+        key_request = requests.get(key_string, verify=False)
+    except Exception as e:
+        logger.critical("Unable to reach Panorama on port 443. Error is:\n\n{}".format(e))
+        print "Unable to reach Panorama on port 443. Error is:\n\n{}".format(e)
     key_xml = et.fromstring(key_request.content)
     if key_request.status_code != 200:
         err_node = key_xml.find('./result/msg')
