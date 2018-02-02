@@ -9,7 +9,13 @@ import os
 import logging
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+if os.getuid() != 0:
+    print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
+    exit(1)
+
 os.system('mkdir /var/log/pan')
+os.system('mkdir /etc/pan_shim/')
 
 
 logger = logging.getLogger("setup")
@@ -19,7 +25,10 @@ formatter = logging.Formatter('%(asctime)s %(name)s\t%(levelname)s:\t\t%(message
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
-
+def upCheck(ip_addr):
+    """Checks basic connectivity to the target device"""
+    status = os.system('ping -c 1 {}'.format(ip_addr))
+    return status
 
 def getKey():
     """Used to fetch the API key for use in polling devices"""
@@ -28,7 +37,16 @@ def getKey():
                      "Panorama and all Panorama managed firewalls.\n\nUsername: ")
     passwd = getpass.getpass("\nEnter the password for the API user: ")
     key_string = "https://" + pano_ip + "/api/?type=keygen&user=" + user + "&password=" + passwd
-    key_request = requests.get(key_string, verify=False)
+    pano_status = upCheck(pano_ip)
+    if pano_status != 0:
+        path = os.popen("tracepath -l 1460 {}".format(pano_ip)).read()
+        logger.warning("Cannot ping Panorama. Path is\n\n{}".format(path))
+        print "Cannot ping Panorama from here. Path is\n\n{}".format(path)
+    try:
+        key_request = requests.get(key_string, verify=False)
+    except Exception as e:
+        logger.critical("Unable to reach Panorama on port 443. Error is:\n\n{}".format(e))
+        print "Unable to reach Panorama on port 443. Error is:\n\n{}".format(e)
     key_xml = et.fromstring(key_request.content)
     if key_request.status_code != 200:
         err_node = key_xml.find('./result/msg')
@@ -52,33 +70,40 @@ def prepService():
     """Moves files to the appropriate directories and sets the correct permissions"""
     logger.info("Copying shim_svc to /etc/init.d")
     shim_cp = os.system("cp ./shim_svc /etc/init.d/")
+    py_list = ['pan_shim.py', 'panFW.py', 'Metrics.py']
     if shim_cp != 0:
         logger.critical("Could not copy service file to /etc/init.d. Are we "
                          "running with sudo?")
         return 1
     logger.info("Setting permissions on shim_svc")
-    shim_perm = os.system("chmod 755 /etc/shim_svc")
+    shim_perm = os.system("chmod 755 /etc/init.d/shim_svc")
     if shim_perm != 0:
         logger.critical("Could not set permissions on /etc/init.d/shim_svc")
         return 1
-    logger.info("Creating /etc/pan_shim")
-    shim_etc = os.system("mkdir /etc/pan_shim")
-    if shim_etc != 0:
-        logger.critical("Could not create directory /etc/pan_shim")
-        return 1
     logger.info("Copying conf file to /etc/pan_shim")
     os.system("cp ./pan_shim.conf /etc/pan_shim/")
-    logger.info("Copying pan_shim.py to /usr/local/bin")
-    py_copy = os.system("cp ./pan_shim.py /usr/local/bin/")
-    if py_copy != 0:
-        logger.critical("Failed to copy pan_shim.py to /usr/local/bin. Are we "
-                         "running with sudo?")
-        return 1
-    logger.info("Setting permissions on pan_shim.py")
-    py_perm = os.system("chmod 755 /usr/local/bin/pan_shim.py")
-    if py_perm != 0:
-        logger.critical("Could not set permissions on /usr/local/bin/pan_shim.py")
-        return 1
+    for file in py_list:
+        logger.info("Copying {} to /usr/local/bin".format(file))
+        py_copy = os.system("cp {} /usr/local/bin/".format(file))
+        if py_copy != 0:
+            logger.critical("Failed to copy {} to /usr/local/bin".format(file))
+            return 1
+        logger.info("Setting permissions on {}".format(file))
+        py_perm = os.system("chmod 755 /usr/local/bin/{}".format(file))
+        if py_perm != 0:
+            logger.critical("Failed to set permissions on {}".format(file))
+            return 1
+    logger.info("Setting up log file.")
+    log_touch = os.system('touch /var/log/pan/shim.log')
+    if log_touch != 0:
+        logger.warning("Failed to create shim log file. May need to manually set"
+                       "permissions after setup")
+    logger.info("Setting permissions on him log file")
+    log_perm = os.system("chmod 766 /var/log/pan/shim.log")
+    if log_perm != 0:
+        logger.warning("Failed to set permissions on shim log file. Please manually"
+                       "set 766 permissions after setup is complete, then restart"
+                       "the service.")
     logger.info("Updating rc.d")
     update_rc = os.system("update-rc.d shim_svc defaults")
     if update_rc != 0:
@@ -93,6 +118,14 @@ def svcStart():
     if svc_start != 0:
         logger.critical("Failed to start shim_svc")
         return 1
+    svc_status = os.popen("service shim_svc status").read()
+    if "(exited)" in svc_status:
+        logger.critical("shim_svc exited. Please start service manually using "
+                        "'sudo service shim_svc start")
+        print "the shim service failed to start automatically. Please start the " \
+              "service manually using 'sudo service shim_svc start"
+    elif "(running)" in svc_status:
+        logger.info("shim_svc started successfully")
     return 0
 
 
@@ -100,10 +133,7 @@ def svcStart():
 
 logger.info('Created log directory.')
 
-if os.getuid() != 0:
-    print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
-    logger.critical("Script not running as root. Re-run using sudo ./shim_setup.py")
-    exit(1)
+
 
 print "Welcome to pan_shim. This set up will guide you th"
 
@@ -124,3 +154,4 @@ if s_start == 1:
                     "details.")
 
 logger.info("Setup complete.")
+print "Setup complete"

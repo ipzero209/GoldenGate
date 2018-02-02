@@ -17,17 +17,38 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 logger = logging.getLogger('pan_shim')
 
-
-
 formatter = logging.Formatter('%(asctime)s  %(module)s:%(levelname)s:%(funcName)s:\t%(message)s')
 
-#TODO: Change fileHandler back to pan_shim.log
-file_handler = logging.FileHandler('gg.log')
-file_handler.setLevel(logging.DEBUG)
+
+file_handler = logging.FileHandler('/var/log/pan/shim.log')
 file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 
+options_dict = {}
+options_dict['EXCLUDE'] = []
+if os.path.isfile('/etc/pan_shim/pan_shim.conf'):
+    c_file = open('/etc/pan_shim/pan_shim.conf', 'r')
+    for line in c_file:
+        line = line.split(":")
+        if line[0] == "LEVEL":
+            logging_level = line[1].strip('\n')
+else:
+    """Set defaults for all options"""
+    logger.setLevel(logging.ERROR)
+
+if logging_level == "debug":
+    logger.setLevel(logging.DEBUG)
+elif logging_level == "info":
+    logger.setLevel(logging.INFO)
+elif logging_level == "warning":
+    logger.setLevel(logging.WARNING)
+elif logging_level == "error":
+    logger.setLevel(logging.ERROR)
+elif logging_level == "critical":
+    logger.setLevel(logging.CRITICAL)
+else:
+    logger.setLevel(logging.ERROR)
 
 
 
@@ -49,27 +70,9 @@ def setOpts(opt_File):
         for line in c_file:
             line = line.split(":")
             if line[0] == "EXCLUDE":
-                options_dict['EXCLUDE'].append(str(line[1]))
-            options_dict[line[0]] = line[1]
-    else:
-        """Set defaults for all options"""
-        logger.setLevel(logging.ERROR)
-        options_dict['LEVEL'] = "error"
-    logging_level = options_dict['LEVEL']
-    if logging_level == "debug":
-        logger.setLevel(logging.DEBUG)
-    elif logging_level == "info":
-        logger.setLevel(logging.INFO)
-    elif logging_level == "warning":
-        logger.setLevel(logging.WARNING)
-    elif logging_level == "error":
-        logger.setLevel(logging.ERROR)
-    elif logging_level == "critical":
-        logger.setLevel(logging.CRITICAL)
-    else:
-        options_dict['LEVEL'] = "error"
-        logger.setLevel(logging.ERROR)
-    return options_dict
+                options_dict['EXCLUDE'].append(str(line[1].strip('\n')))
+    return options_dict['EXCLUDE']
+
 
 
 
@@ -95,9 +98,7 @@ def getDevices(pano_ip, key, ex_list):
             family = device.find('family').text
             is_ha = 'no'
             this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
-            logging.info("Added device {}, S/N {}:\n\n{}\n".format(this_dev.h_name,
-                                                                    this_dev.ser_num,
-                                                                    this_dev.prinfo()))
+            logger.info("Added device:\n{}\n-------------------".format(this_dev.prinfo()))
             fw_obj_list.append(this_dev)
     return fw_obj_list
 
@@ -170,38 +171,38 @@ def getData(fw, pano_ip, key):
 ##########################################################
 
 # Get the API key from /etc/pan_shim
-if os.path.isfile('./data'):
-    s_data = shelve.open('./data') #TODO - /etc/pan_shim/
-    api_key = "LUFRPT14MW5xOEo1R09KVlBZNnpnemh0VHRBOWl6TGM9bXcwM3JHUGVhRlNiY0dCR0srNERUQT09" #s_data['api_key']
-    pano_ip = "10.3.4.63" #s_data['pano_ip']
+if os.path.isfile('/etc/pan_shim/data'):
+    s_data = shelve.open('/etc/pan_shim/data') #TODO - /etc/pan_shim/
+    api_key = s_data['api_key']
+    pano_ip = s_data['pano_ip']
     s_data.close()
 else:
     logger.error("No data file found. Please run shim_setup.py")
 
-o_dict = setOpts('./pan_shim.conf')
-exclude_list = o_dict['EXCLUDE']
+exclude_list = setOpts('/etc/pan_shim/pan_shim.conf')
+
 
 # Get initial list of devices
 dev_list = getDevices(pano_ip, api_key, exclude_list)
 for device in dev_list:
-    logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
+    logger.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
 
 c_count = 0
 while True:
+    logger.info("-----Beginning Poll Cycle-----")
     if c_count == 6:
-        logging.info("-----It's been 30 minutes. Rebuilding device list.-----")
-        dev_list = getDevices(pano_ip, api_key)
+        logger.info("-----It's been 30 minutes. Rebuilding device list.-----")
+        dev_list = getDevices(pano_ip, api_key, exclude_list)
         for device in dev_list:
-            logging.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
+            logger.info("Device added: Hostname {}, S/N {}".format(device.h_name, device.ser_num))
         c_count = 0
     for device in dev_list:
-        logging.info("-----Beginning Poll Cycle-----")
         status = upCheck(device.mgmt_ip)
         if status != 0:
             logger.error("Device {} is not reachable by ping".format(device.h_name))
             pass
         else:
-            logging.debug("Gathering data for {}, S/N {}.".format(device.h_name, device.ser_num))
+            logger.debug("Gathering data for {}, S/N {}.".format(device.h_name, device.ser_num))
             data_thread = Thread(target=getData, args=(device, pano_ip, api_key))
             data_thread.start()
     c_count += 1
