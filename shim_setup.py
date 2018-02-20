@@ -7,6 +7,7 @@ import getpass
 import shelve
 import os
 import logging
+import argparse
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -129,29 +130,37 @@ def svcStart():
     return 0
 
 
+def main():
+
+    logger.info('Created log directory.')
 
 
-logger.info('Created log directory.')
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-i", "--install", help="Installs pan shim", action="store_true")
+    group.add_argument("-u", "--update", help="Updates the stored API key", action="store_true")
+    args = parser.parse_args()
+    print "Welcome to pan_shim. This set up will guide you th"
+
+    api_key = getKey()
+    if api_key == 1:
+        logger.critical("Error getting the API key")
+        exit(1)
+    saveInfo('api_key', api_key)
+
+    prep = prepService()
+    if prep == 1:
+        logger.critical("Critical error in service set up. See log for details.")
+        exit(1)
+
+    s_start = svcStart()
+    if s_start == 1:
+        logger.critical("Critical error when starting the service. See log for "
+                        "details.")
+
+    logger.info("Setup complete.")
+    print "Setup complete"
 
 
-
-print "Welcome to pan_shim. This set up will guide you th"
-
-api_key = getKey()
-if api_key == 1:
-    logger.critical("Error getting the API key")
-    exit(1)
-saveInfo('api_key', api_key)
-
-prep = prepService()
-if prep == 1:
-    logger.critical("Critical error in service set up. See log for details.")
-    exit(1)
-
-s_start = svcStart()
-if s_start == 1:
-    logger.critical("Critical error when starting the service. See log for "
-                    "details.")
-
-logger.info("Setup complete.")
-print "Setup complete"
+if __name__ == '__main__':
+    main()
