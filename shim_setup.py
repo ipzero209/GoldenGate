@@ -56,7 +56,10 @@ def getKey():
     key_node = key_xml.find('./result/key')
     logger.info("API key successfully retrieved from {}.".format(pano_ip))
     saveInfo('pano_ip', pano_ip)
-    return key_node.text
+    logger.info('Panorama IP saved to data file.')
+    saveInfo('api_key', key_node.text)
+    logger.info('API key saved to data file.')
+    return 0
 
 def saveInfo(key_str, data):
     """Used to shelve the API key for later use"""
@@ -64,7 +67,7 @@ def saveInfo(key_str, data):
     s_data = shelve.open('/etc/pan_shim/data')
     s_data[key_str] = data
     s_data.close()
-    logger.info("API key saved")
+    logger.info("{} saved to data file}".format(key_str))
     return
 
 def prepService():
@@ -129,6 +132,16 @@ def svcStart():
         logger.info("shim_svc started successfully")
     return 0
 
+def svcStop():
+    """Stops the service"""
+    logger.info("Attempting to stop the service")
+    svc_stop = os.system("service shim_svc stop")
+    if svc_stop != 0:
+        logger.critical("Failed to stop shim_svc")
+        return 1
+    return 0
+
+
 
 def main():
 
@@ -138,28 +151,58 @@ def main():
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-i", "--install", help="Installs pan shim", action="store_true")
-    group.add_argument("-u", "--update", help="Updates the stored API key", action="store_true")
+    group.add_argument("-r", "--renew", help="Updates the stored API key", action="store_true")
+    group.add_argument("-u", "--uninstall", help="Uninstalls pan shim", action="store_true")
     args = parser.parse_args()
-    print "Welcome to pan_shim. This set up will guide you th"
 
-    api_key = getKey()
-    if api_key == 1:
-        logger.critical("Error getting the API key")
-        exit(1)
-    saveInfo('api_key', api_key)
+    if args.install:
+        print "Welcome to pan_shim. This set up will guide you through setting up the shim service."
+        api_key = getKey()
+        if api_key == 1:
+            logger.critical("Error getting the API key")
+            exit(1)
+        prep = prepService()
+        if prep == 1:
+            logger.critical("Critical error in service set up. See log for details.")
+            exit(1)
+        s_start = svcStart()
+        if s_start == 1:
+            logger.critical("Critical error when starting the service. See log for "
+                            "details.")
+        logger.info("Setup complete.")
+        print "Setup complete"
+        exit(0)
+    elif args.renew:
+        if not os.path.isfile('/etc/pan_shim/data'):
+            logger.info('No data file found. Please check the location of the '
+                        'data file. The file name is \'data\' and it should be'
+                        'located at /etc/pan_shim/')
+            print "Error opening the data file. Please see the setup log for more" \
+                  "details."
+        stop = svcStop()
+        if stop == 1:
+            logger.critical("Failed to stop service. Exiting now.")
+            print "There was an issue stopping the service. Please see the setup" \
+                  " log for more details."
+            exit(1)
+        k_status = getKey()
+        if k_status != 0:
+            logger.critical('There was an issue renewing the API key.')
+            exit(1)
+        start = svcStart()
+        if start != 0:
+            logger.warn('Error starting the service.')
+            exit(1)
+        exit(0)
+    elif args.uninstall:
+        confirm = raw_input("This will uninstall pan shim from your system."
+                            "Are you sure? (y/N): ")
+        if confirm == ("" or "n" or "N" or "no" or "No" or "NO"):
+            logger.info("Cancelling uninstall at user request.")
+            exit(0)
+        elif confirm == ("y" or "Y" or "Yes" or "yes"):
+            #TODO: Uninstall
 
-    prep = prepService()
-    if prep == 1:
-        logger.critical("Critical error in service set up. See log for details.")
-        exit(1)
-
-    s_start = svcStart()
-    if s_start == 1:
-        logger.critical("Critical error when starting the service. See log for "
-                        "details.")
-
-    logger.info("Setup complete.")
-    print "Setup complete"
 
 
 if __name__ == '__main__':
