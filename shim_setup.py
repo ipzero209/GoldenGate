@@ -141,7 +141,18 @@ def svcStop():
         return 1
     return 0
 
-
+def removeFiles():
+    """Deletes pan shim related files"""
+    os.system('rm -rf /etc/pan_shim')
+    # os.system('rmdir /etc/pan_shim')
+    os.system('rm -rf /var/log/pan')
+    # os.system('rmdir /var/log/pan')
+    os.system('rm -f /etc/init.d/shim_svc')
+    os.system('rm -f /usr/local/bin/Metrics.py')
+    os.system('rm -f /usr/local/bin/Metrics.pyc')
+    os.system('rm -f /usr/local/bin/panFW.py')
+    os.system('rm -f /usr/local/bin/panFW.pyc')
+    os.system('rm -f /usr/local/bin/pan_shim.py')
 
 def main():
 
@@ -191,7 +202,7 @@ def main():
             exit(1)
         start = svcStart()
         if start != 0:
-            logger.warn('Error starting the service.')
+            logger.warning('Error starting the service.')
             exit(1)
         exit(0)
     elif args.uninstall:
@@ -201,7 +212,18 @@ def main():
             logger.info("Cancelling uninstall at user request.")
             exit(0)
         elif confirm == ("y" or "Y" or "Yes" or "yes"):
-            #TODO: Uninstall
+            print "Proceding with uninstall."
+            logger.warning("Uninstall confirmed.")
+        else:
+            print "Please enter y or n. Exiting now."
+            logger.warning("Invalid choice for confirmation prompt. Exiting.")
+            exit(0)
+        stop = svcStop()
+        if stop == 1:
+            logger.critical("Failed to stop service. Please manually stop the "
+                            "service after uninstallation is complete.")
+        removeFiles()
+
 
 
 
