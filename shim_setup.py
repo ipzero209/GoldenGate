@@ -8,6 +8,7 @@ import shelve
 import os
 import logging
 import argparse
+import sys
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -15,8 +16,6 @@ if os.getuid() != 0:
     print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
     exit(1)
 
-os.system('mkdir /var/log/pan')
-os.system('mkdir /etc/pan_shim/')
 
 
 logger = logging.getLogger("setup")
@@ -74,7 +73,7 @@ def prepService():
     """Moves files to the appropriate directories and sets the correct permissions"""
     logger.info("Copying shim_svc to /etc/init.d")
     shim_cp = os.system("cp ./shim_svc /etc/init.d/")
-    py_list = ['pan_shim.py', 'panFW.py', 'Metrics.py']
+    py_list = ['pan_shim.py', 'panFW.py', 'Metrics.py', 'shim_setup.py']
     if shim_cp != 0:
         logger.critical("Could not copy service file to /etc/init.d. Are we "
                          "running with sudo?")
@@ -153,6 +152,8 @@ def removeFiles():
     os.system('rm -f /usr/local/bin/panFW.py')
     os.system('rm -f /usr/local/bin/panFW.pyc')
     os.system('rm -f /usr/local/bin/pan_shim.py')
+    os.system('rm -f /usr/local/bin/shim_setup.py')
+    return
 
 def main():
 
@@ -166,8 +167,12 @@ def main():
     group.add_argument("-u", "--uninstall", help="Uninstalls pan shim", action="store_true")
     args = parser.parse_args()
 
+
+
     if args.install:
         print "Welcome to pan_shim. This set up will guide you through setting up the shim service."
+        os.system('mkdir /var/log/pan')
+        os.system('mkdir /etc/pan_shim/')
         api_key = getKey()
         if api_key == 1:
             logger.critical("Error getting the API key")
