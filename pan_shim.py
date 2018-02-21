@@ -172,7 +172,7 @@ def getData(fw, pano_ip, key):
 
 # Get the API key from /etc/pan_shim
 if os.path.isfile('/etc/pan_shim/data'):
-    s_data = shelve.open('/etc/pan_shim/data') #TODO - /etc/pan_shim/
+    s_data = shelve.open('/etc/pan_shim/data')
     api_key = s_data['api_key']
     pano_ip = s_data['pano_ip']
     s_data.close()
