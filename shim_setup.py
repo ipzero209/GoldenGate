@@ -66,7 +66,7 @@ def saveInfo(key_str, data):
     s_data = shelve.open('/etc/pan_shim/data')
     s_data[key_str] = data
     s_data.close()
-    logger.info("{} saved to data file}".format(key_str))
+    logger.info("{} saved to data file".format(key_str))
     return
 
 def prepService():
