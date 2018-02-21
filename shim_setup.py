@@ -16,7 +16,7 @@ if os.getuid() != 0:
     print "Not running with sudo. Please re-start set up using sudo ./shim_setup.py"
     exit(1)
 
-
+os.system('mkdir /var/log/pan')
 
 logger = logging.getLogger("setup")
 logger.setLevel(logging.DEBUG)
@@ -171,7 +171,6 @@ def main():
 
     if args.install:
         print "Welcome to pan_shim. This set up will guide you through setting up the shim service."
-        os.system('mkdir /var/log/pan')
         os.system('mkdir /etc/pan_shim/')
         api_key = getKey()
         if api_key == 1:
