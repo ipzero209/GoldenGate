@@ -43,7 +43,7 @@ This script uses the XML API to gather device monitoring data from the firewalls
 1. Download a zip archive of the project
 2. Transfer to the host that will be running the script
 3. Unpack the archive (this can be in a temporary location)
-4. Run the setup using 'sudo ./shim_setup.py'
+4. Run the setup using 'sudo ./shim_setup.py --install' (The short option '-i' may also be used
 5. Follow the on screen prompts
 6. Verify that the service is running:
   A. 'sudo service shim_svc status'
@@ -64,6 +64,20 @@ The conf file is located at /etc/pan_shim/pan_shim.conf. There are currently two
   3. Restart the service for changes to take effect.
     A. 'sudo service shim_svc restart'
     
-    
+ ## Ongoing operations
+
+ While GoldenGate is meant to be a fire-and-forget script, you may need to change the password for the API user at some point. To update the API key that GG uses, simply run the setup script with the --renew option (or you can use the short option '-r'):
+
+ 'sudo shim_setup --renew'
+
+ follow the on screen prompts to fetch the new API key for the script. The renew option will gather the required credentials, use the API to generate a new key, save the new key, and restart the service.
+
+
+
+ ## Uninstalling
+
+ To uninstall GoldenGate, simply run the setup script with the --uninstall option (you can also use the '-u' short option.
+
+
     
 
