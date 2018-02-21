@@ -78,6 +78,5 @@ The conf file is located at /etc/pan_shim/pan_shim.conf. There are currently two
 
  To uninstall GoldenGate, simply run the setup script with the --uninstall option (you can also use the '-u' short option.
 
-
     
 
