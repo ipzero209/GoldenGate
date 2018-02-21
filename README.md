@@ -70,7 +70,7 @@ The conf file is located at /etc/pan_shim/pan_shim.conf. There are currently two
 
  'sudo shim_setup --renew'
 
- follow the on screen prompts to fetch the new API key for the script. The renew option will gather the required credentials, use the API to generate a new key, save the new key, and restart the service.
+ Follow the on screen prompts to fetch the new API key for the script. The renew option will gather the required credentials, use the API to generate a new key, save the new key, and restart the service.
 
 
 
