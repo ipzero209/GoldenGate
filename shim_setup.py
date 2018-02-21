@@ -166,6 +166,10 @@ def main():
     group.add_argument("-r", "--renew", help="Updates the stored API key", action="store_true")
     group.add_argument("-u", "--uninstall", help="Uninstalls pan shim", action="store_true")
     args = parser.parse_args()
+    if len(sys.argv) < 2:
+        parser.print_help()
+        parser.exit()
+        exit(1)
 
 
 
