@@ -162,7 +162,8 @@ def getData(fw, pano_ip, key):
     else:
         logger.error("Submission to Panorama failed in for device {}, S/N {} failed"
                      " with status {}".format(fw.h_name, fw.ser_num, send))
-        return
+    print update_dict
+    return
 
 ##########################################################
 #
