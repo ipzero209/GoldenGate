@@ -848,7 +848,7 @@ def logFwd(fw, api_key, u_dict):
 
 
 def sendData(fw, pano_ip, key, u_dict):
-    prefix = "http://{}/api/?".format(pano_ip)
+    prefix = "https://{}/api/?".format(pano_ip)
     headerlist = {'Content-Type' : 'application/x-www-form-urlencoded'}
     update_str = json.dumps(u_dict)
     cmd = "type=op&key={}&cmd=<monitoring><external-input><device>{}</device><d" \
