@@ -404,8 +404,8 @@ def intErrors(fw, api_key, u_dict):
         idrops = entry.find('idrops').text
         if int_label not in u_dict['trend']['i']:
             u_dict['trend']['i'][int_label] = {}
-        u_dict['trend']['i'][int_label]['re'] = ierrors
-        u_dict['trend']['i'][int_label]['rd'] = idrops
+        u_dict['trend']['i'][int_label]['re'] = int(ierrors)
+        u_dict['trend']['i'][int_label]['rd'] = int(idrops)
     return u_dict
 
 
