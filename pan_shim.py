@@ -99,7 +99,7 @@ def getDevices(pano_ip, key, ex_list):
             hostname = device.find('hostname').text
             mgmt_ip = device.find('ip-address').text
             family = device.find('family').text
-            ha_req = requests.get('https://{}/api/?', params=ha_params, verify=False)
+            ha_req = requests.get('https://{}/api/?'.format(mgmt_ip), params=ha_params, verify=False)
             ha_xml = et.fromstring(ha_req.content)
             ha_en = ha_xml.find('./result/enabled').text
             if ha_en == 'yes':
