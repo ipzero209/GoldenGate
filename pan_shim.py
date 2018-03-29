@@ -106,7 +106,7 @@ def getDevices(pano_ip, key, ex_list):
                 is_ha = 'yes'
                 ha_peer = ha_xml.find('./result/group/peer-info/mgmt-ip').text
                 ha_state = ha_xml.find('./result/group/local-info/state').text
-                this_dev=panFW.Device(hostname, seria, mgmt_ip, os_ver, family, is_ha=is_ha, ha_peer=ha_peer, ha_state=ha_state)
+                this_dev=panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha=is_ha, ha_peer=ha_peer, ha_state=ha_state)
             else:
                 is_ha = 'no'
                 this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha=is_ha)
