@@ -806,7 +806,7 @@ def haInfo(fw, api_key, u_dict):
     ha_enable = ha_xml.find('./result/enabled').text
     if ha_enable == 'yes':
         u_dict['status']['HA']['e'] = 'enabled'
-        if ha_xml.find('./result/group/local-info/last-error-state'):
+        if ha_xml.find('./result/group/local-info/last-error-state') is not None:
             u_dict['status']['HA']['f'] = ha_xml.find('./result/group/local-info/last-error-state').text
         u_dict['status']['HA']['rs'] = ha_xml.find('./result/group/local-info/state-sync').text
         for interface in interfaces:
