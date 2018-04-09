@@ -105,7 +105,7 @@ def mpMem(fw, api_key, u_dict):
     used_mem_int = int(used_mem_hex_str, 16)
     total_mem_hex_str = mp_mem_json['size']
     total_mem_int = int(total_mem_hex_str, 16)
-    used_mem_pct = (float(used_mem_int) / float(total_mem_int)) * 100  # TODO: round if you have time
+    used_mem_pct = (float(used_mem_int) / float(total_mem_int)) * 100
     u_dict['trend']['mm'] = used_mem_pct
     return u_dict
 
@@ -332,62 +332,6 @@ def intStats(fw, api_key, u_dict):
 ##########################################################
 
 
-# def intErrors(fw, api_key, u_dict):
-#     err_xpath = "<show><system><state><filter>sys.s*.p*.detail</filter></state></sy" \
-#                 "stem></show>&key="
-#     prefix = "https://{}/api/?type=op&cmd=".format(fw.mgmt_ip)
-#
-#     match_begin = re.compile(': (?=[0-9a-fA-Z])')
-#     match_end = re.compile(',(?= ")')
-#     match_end_2 = re.compile(' (?=})')
-#     num_quote = re.compile('(?=, )')
-#
-#     match_err_slot = re.compile('(?<=sys\.s)(.*)(?=\.p)')
-#     match_err_interface = re.compile('(?<=\.p)(.*)(?=\.detail)')
-#
-#     err_req = requests.get(prefix + err_xpath + api_key, verify=False)
-#     err_req_xml = et.fromstring(err_req.content)
-#     err_text = err_req_xml.find('./result').text
-#
-#     if err_text is None:
-#         print "No error data"
-#     else:
-#         err_text = err_text.split('\n')
-#
-#     for line in err_text:
-#         if line == "":
-#             break
-#         label = line[:line.find('{')]
-#         err_slot_number = re.search(match_err_slot, label).group(0)
-#         err_int_number = re.search(match_err_interface, label).group(0)
-#         int_label = "{}/{}".format(str(err_slot_number), str(err_int_number))
-#         line = line[line.find('{'):]
-#         if len(line) == 3:
-#             pass
-#         else:
-#             line = line[line.find('{'):]
-#             line = line.replace('\'', '"')
-#             line = line.replace(', }', ' }')
-#             line = re.sub(match_begin, ': "', line)
-#             line = re.sub(num_quote, '"', line)
-#             line = re.sub(match_end_2, '"', line)
-#             j_line = json.loads(line)
-#             if "mac_transmit_err" in j_line:
-#                 if int_label not in u_dict['trend']['i']:
-#                     u_dict['trend']['i'][int_label] = {}
-#                 te_int = int(j_line['mac_transmit_err'])
-#                 u_dict['trend']['i'][int_label]['te'] = te_int
-#             if "mac_rcv_err" in j_line:
-#                 if int_label not in u_dict['trend']['i']:
-#                     u_dict['trend']['i'][int_label] = {}
-#                 re_int = int(j_line['mac_rcv_err'])
-#                 u_dict['trend']['i'][int_label]['re'] = re_int
-#             if "rcv_fifo_overrun" in j_line:
-#                 if int_label not in u_dict['trend']['i']:
-#                     u_dict['trend']['i'][int_label] = {}
-#                 rd_int = int((j_line['rcv_fifo_overrun']), 16)
-#                 u_dict['trend']['i'][int_label]['rd'] = rd_int
-#     return u_dict
 
 
 def intErrors(fw, api_key, u_dict):
@@ -399,13 +343,14 @@ def intErrors(fw, api_key, u_dict):
     int_list = ierr_xml.findall('./result/ifnet/ifnet/*')
     for entry in int_list:
         int_label = entry.find('name').text
-        int_label = int_label.strip('ethernet')
-        ierrors = entry.find('ierrors').text
-        idrops = entry.find('idrops').text
-        if int_label not in u_dict['trend']['i']:
-            u_dict['trend']['i'][int_label] = {}
-        u_dict['trend']['i'][int_label]['re'] = int(ierrors)
-        u_dict['trend']['i'][int_label]['rd'] = int(idrops)
+        if 'ethernet' in int_label:
+            int_label = int_label.strip('ethernet')
+            ierrors = entry.find('ierrors').text
+            idrops = entry.find('idrops').text
+            if int_label not in u_dict['trend']['i']:
+                u_dict['trend']['i'][int_label] = {}
+            u_dict['trend']['i'][int_label]['re'] = int(ierrors)
+            u_dict['trend']['i'][int_label]['rd'] = int(idrops)
     return u_dict
 
 
@@ -507,7 +452,7 @@ def logRate(fw, api_key, u_dict):
 #
 ##########################################################
 
-# TODO: Extract the model check to main function
+
 
 def envFans(fw, api_key, u_dict):
 
@@ -839,6 +784,48 @@ def logFwd(fw, api_key, u_dict):
             u_dict['status']['logging-external']['external'][node[0]][m_key] = int(node_text)
     return u_dict
 
+
+
+
+##########################################################
+#
+#       HA Info
+#
+##########################################################
+
+def haInfo(fw, api_key, u_dict):
+    """Fetches relevant HA info for Device Monitoring"""
+    prefix = "https://{}/api/?".format(fw.mgmt_ip)
+    ha_cmd = "<show><high-availability><all></all></high-availability></show>"
+    ha_params = {'type' : 'op',
+                 'cmd' : ha_cmd,
+                 'key' : api_key}
+    interfaces = ['ha1', 'ha1b', 'ha2', 'ha2b', 'ha3']
+    ha_req = requests.get(prefix, params=ha_params, verify=False)
+    ha_xml = et.fromstring(ha_req.content)
+    ha_enable = ha_xml.find('./result/enabled').text
+    if ha_enable == 'yes':
+        u_dict['status']['HA']['e'] = 'enabled'
+        if ha_xml.find('./result/group/local-info/last-error-state') is not None:
+            u_dict['status']['HA']['f'] = ha_xml.find('./result/group/local-info/last-error-state').text
+        u_dict['status']['HA']['rs'] = ha_xml.find('./result/group/local-info/state-sync').text
+        for interface in interfaces:
+            int_cmd = "<show><high-availability><interface>{}</interface>" \
+                      "</high-availability></show>".format(interface)
+            int_params = {'type': 'op',
+                          'cmd': int_cmd,
+                          'key': api_key}
+            int_req = requests.get("https://{}/api/?".format(fw.mgmt_ip), params=int_params, verify=False)
+            int_xml = et.fromstring(int_req.content)
+            if int_xml.find('./result/entry'):
+                for node in int_xml.iter('state'):
+                    int_state = node.text
+                    u_dict['status']['HA'][interface] = int_state
+    elif ha_enable == 'no':
+        u_dict['status']['HA']['e'] = 'disabled'
+    else:
+        pass
+    return u_dict
 
 ##########################################################
 #

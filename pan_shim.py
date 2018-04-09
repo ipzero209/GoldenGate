@@ -85,6 +85,9 @@ def getDevices(pano_ip, key, ex_list):
     dev_xml = et.fromstring(get_dev_req.content)
     devices = dev_xml.findall('./result/devices/*')
     fw_obj_list = []
+    ha_params = {'type' : 'op',
+                 'cmd' : '<show><high-availability><all></all></high-availability></show>',
+                 'key' : key}
     for device in devices:
         os_ver = device.find('sw-version').text
         serial = device.find('serial').text
@@ -96,8 +99,17 @@ def getDevices(pano_ip, key, ex_list):
             hostname = device.find('hostname').text
             mgmt_ip = device.find('ip-address').text
             family = device.find('family').text
-            is_ha = 'no'
-            this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha)
+            ha_req = requests.get('https://{}/api/?'.format(mgmt_ip), params=ha_params, verify=False)
+            ha_xml = et.fromstring(ha_req.content)
+            ha_en = ha_xml.find('./result/enabled').text
+            if ha_en == 'yes':
+                is_ha = 'yes'
+                ha_peer = ha_xml.find('./result/group/peer-info/mgmt-ip').text
+                ha_state = ha_xml.find('./result/group/local-info/state').text
+                this_dev=panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha=is_ha, ha_peer=ha_peer, ha_state=ha_state)
+            else:
+                is_ha = 'no'
+                this_dev = panFW.Device(hostname, serial, mgmt_ip, os_ver, family, is_ha=is_ha)
             logger.info("Added device:\n{}\n-------------------".format(this_dev.prinfo()))
             fw_obj_list.append(this_dev)
     return fw_obj_list
@@ -126,6 +138,7 @@ def getData(fw, pano_ip, key):
     update_dict['status']['environmentals']['fans'] = {}
     update_dict['status']['environmentals']['thermal'] = {}
     update_dict['status']['environmentals']['power'] = {}
+    update_dict['status']['HA'] = {}
 
     update_dict = Metrics.mpCPU(fw, key, update_dict)
     update_dict = Metrics.mpMem(fw, key, update_dict)
@@ -156,13 +169,13 @@ def getData(fw, pano_ip, key):
         pass
     if fw.os_ver[:3] == "8.0":
         update_dict = Metrics.logFwd(fw, key, update_dict)
+    update_dict = Metrics.haInfo(fw, key, update_dict)
     send = Metrics.sendData(fw, pano_ip, key, update_dict)
     if send == "success":
         return
     else:
         logger.error("Submission to Panorama failed in for device {}, S/N {} failed"
                      " with status {}".format(fw.h_name, fw.ser_num, send))
-    print update_dict
     return
 
 ##########################################################
