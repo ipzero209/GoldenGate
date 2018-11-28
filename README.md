@@ -45,7 +45,7 @@ API to gather the metrics that need to be displayed in Panorama (every 5 minutes
 ## Preparation
 
 This script uses the XML API to gather device monitoring data from the firewalls and to feed that data into Panorama. It is recommended that a unique API admin account be created specific for the script. There are two options for creating this API user account:
-  1. Create the account as a 'superreader'
+  1. Create the account as a 'superreader'.
   2. Create a custom admin role. If you choose to create an admin role, the settings need to include:
     A. Type (for Panorama): Panorama
     B. Access: XML API - Operational Commands
