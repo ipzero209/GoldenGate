@@ -1,6 +1,18 @@
 # GoldenGate
 
-This software is meant to run alongside Panorama installations running PAN-OS 8.1 or later. It provides a method for ingestion device monitoring data for managed devices running versions of PAN-OS earlier than 8.1.
+This software is meant to run alongside Panorama installations running PAN-OS 8.1
+or later. It provides a method for ingesting device monitoring data for managed
+devices running versions of PAN-OS earlier than 8.1.
+
+
+The device monitoring feature introduced in PAN-OS 8.1 requires that managed
+firewalls be running PAN-OS 8.1 as well. This is because the firewalls send 
+metrics data to Panorama rather than Panorama polling the devices.
+
+This script works by connecting to Panorama and pulling a list of connected
+devices. The script then builds it's own list pre-8.1 firewalls to poll. Using
+this list, the script connects directly to the managed firewalls and uses the
+API to gather the metrics that need to be displayed in Panorama (every 5 minutes).
 
 ## Dependencies
 
